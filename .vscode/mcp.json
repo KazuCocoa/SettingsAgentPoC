@@ -5,7 +5,8 @@
       "command": "node",
       "args": ["/Users/kazu/github/appium-mcp/dist/index.js"],
       "env": {
-        "ANDROID_HOME": "${env:ANDROID_HOME}"
+        "ANDROID_HOME": "${env:ANDROID_HOME}",
+        "NO_UI": "true"
       }
     }
   }

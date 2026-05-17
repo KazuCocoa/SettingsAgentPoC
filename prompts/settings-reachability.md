@@ -6,10 +6,10 @@ Use Appium MCP tools to prove that the coding agent can navigate between major S
 
 1. Start an Appium session using `appium/capabilities.android.json`.
 2. Start at the Settings home screen.
-3. Open Apps.
+3. Find and click the "Apps" element.
 4. Capture evidence.
 5. Back to home.
-6. Open About phone or the closest device information page.
+6. Find and click the "Battery" element.
 7. Capture evidence.
 8. Back to home if practical.
 9. Save a short summary of the route and any ambiguities encountered.
