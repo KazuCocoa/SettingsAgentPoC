@@ -9,35 +9,35 @@ This document describes the automated orchestration infrastructure for the Setti
 ### Orchestration Flow
 
 ```
-validate-environment.js
+validate-environment.mjs
     ↓ (check ANDROID_HOME, adb, emulator)
-run-explore.js
+run-explore.mjs
     ↓ (navigate to 2+ safe targets, capture evidence)
-validate-artifacts.js
+validate-artifacts.mjs
     ↓ (check PNG/XML quality, log content)
-run-reachability.js
+run-reachability.mjs
     ↓ (execute Home → Apps → Home → About phone → Home)
-validate-artifacts.js
+validate-artifacts.mjs
     ↓ (final check)
-generate-report.js
+generate-report.mjs
     ↓ (summarize findings)
 run-report.md
 ```
 
-**Master entry point:** `scripts/run-poc.js`
+**Master entry point:** `scripts/run-poc.mjs`
 **CLI interface:** `npm run poc` (and variants)
 **Note:** Appium server startup is handled by appium-mcp; validation only checks device prerequisites.
 
 ### Component Responsibilities
 
-#### `validate-environment.js`
+#### `validate-environment.mjs`
 **Purpose:** Pre-flight checks for device and SDK prerequisites.
 
 **Checks:**
 
 **Behavior:**
 
-#### `run-explore.js`
+#### `run-explore.mjs`
 **Purpose:** Execute exploratory navigation task (implements `prompts/settings-explore.md`).
 
 **Flow:**
@@ -56,7 +56,7 @@ run-report.md
 
 **Artifacts generated:**
 
-#### `run-reachability.js`
+#### `run-reachability.mjs`
 **Purpose:** Execute specific navigation sequence (implements `prompts/settings-reachability.md`).
 
 **Flow:**
@@ -80,14 +80,14 @@ Home -> Apps -> [capture] -> Home -> [capture] -> About phone -> [capture] -> Ho
 
 **Artifacts generated:**
 
-#### `validate-artifacts.js`
+#### `validate-artifacts.mjs`
 **Purpose:** Quality assurance for captured artifacts.
 
 **Checks:**
 
 **Behavior:**
 
-#### `generate-report.js`
+#### `generate-report.mjs`
 **Purpose:** Generate human-readable summary of all runs.
 
 **Reads:**
@@ -98,7 +98,7 @@ Home -> Apps -> [capture] -> Home -> [capture] -> About phone -> [capture] -> Ho
   - File listings
   - Recommendations for next steps
 
-#### `run-poc.js`
+#### `run-poc.mjs`
 **Purpose:** Master orchestrator that sequences all phases.
 
 **Phases (in order):**
@@ -163,13 +163,13 @@ Environment
 
 ```
 scripts/
-  ├─ validate-environment.js   (pre-flight checks)
-  ├─ appium-client.js          (Appium wrapper)
-  ├─ run-explore.js            (exploration task)
-  ├─ run-reachability.js        (reachability task)
-  ├─ validate-artifacts.js      (quality checks)
-  ├─ generate-report.js         (report generation)
-  └─ run-poc.js                 (master orchestrator)
+    ├─ validate-environment.mjs   (pre-flight checks)
+    ├─ appium-client.js          (Appium wrapper)
+    ├─ run-explore.mjs            (exploration task)
+    ├─ run-reachability.mjs        (reachability task)
+    ├─ validate-artifacts.mjs      (quality checks)
+    ├─ generate-report.mjs         (report generation)
+    └─ run-poc.mjs                 (master orchestrator)
 artifacts/
   ├─ screenshots/              (PNG files from runs)
   ├─ page-source/              (XML page sources)

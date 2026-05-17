@@ -6,9 +6,9 @@
  * Note: Appium server startup is handled by appium-mcp, not validated here
  */
 
-import fs from 'fs';
-import path from 'path';
-import { execSync } from 'child_process';
+import fs from 'node:fs';
+import path from 'node:path';
+import { execSync } from 'node:child_process';
 
 const ANDROID_HOME = process.env.ANDROID_HOME;
 

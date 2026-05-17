@@ -6,7 +6,7 @@
  * Invokes: prompts/settings-reachability.md with Appium tools
  */
 
-import { executeTask } from './prompt-executor.js';
+import { executeTask } from './prompt-executor.mjs';
 
 async function main() {
   console.log('[run-reachability] Starting Settings reachability test via LLM');

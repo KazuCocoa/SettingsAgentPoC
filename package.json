@@ -7,13 +7,13 @@
     "node": ">=18.0.0"
   },
   "scripts": {
-    "validate-env": "node scripts/validate-environment.js",
-    "poc": "node scripts/run-poc.js",
-    "poc:prepare": "node scripts/run-poc.js --prepare-only",
-    "poc:finalize": "node scripts/run-poc.js --finalize",
-    "poc:explore": "node scripts/run-poc.js --explore-only",
-    "poc:reachability": "node scripts/run-poc.js --reachability-only",
-    "validate-artifacts": "node scripts/validate-artifacts.js",
-    "report": "node scripts/generate-report.js"
+    "validate-env": "node scripts/validate-environment.mjs",
+    "poc": "node scripts/run-poc.mjs",
+    "poc:prepare": "node scripts/run-poc.mjs --prepare-only",
+    "poc:finalize": "node scripts/run-poc.mjs --finalize",
+    "poc:explore": "node scripts/run-poc.mjs --explore-only",
+    "poc:reachability": "node scripts/run-poc.mjs --reachability-only",
+    "validate-artifacts": "node scripts/validate-artifacts.mjs",
+    "report": "node scripts/generate-report.mjs"
   }
 }

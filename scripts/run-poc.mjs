@@ -6,8 +6,8 @@
  * Validates artifacts and generates reports
  */
 
-import { execSync } from 'child_process';
-import process from 'process';
+import { execSync } from 'node:child_process';
+import process from 'node:process';
 
 const args = process.argv.slice(2);
 const skipValidation = args.includes('--skip-validation');
@@ -99,7 +99,7 @@ async function main() {
   // Phase 1: Environment validation
   if (!skipValidation) {
     log('INFO', '\n=== Phase 1: Environment Validation ===');
-    const envValid = runCommand('Environment validation', 'node scripts/validate-environment.js');
+    const envValid = runCommand('Environment validation', 'node scripts/validate-environment.mjs');
 
     if (!envValid) {
       log('ERROR', 'Environment validation failed. Please fix issues and try again.');
@@ -114,7 +114,7 @@ async function main() {
       log('INFO', 'Running prompt executor to prepare exploration task...');
       const exploreSuccess = runCommand(
         'Exploration setup',
-        'node scripts/run-explore.js'
+        'node scripts/run-explore.mjs'
       );
 
       if (exploreSuccess) {
@@ -133,7 +133,7 @@ async function main() {
       log('INFO', 'Running prompt executor to prepare reachability task...');
       const reachSuccess = runCommand(
         'Reachability setup',
-        'node scripts/run-reachability.js'
+        'node scripts/run-reachability.mjs'
       );
 
       if (reachSuccess) {
@@ -156,7 +156,7 @@ async function main() {
   // Finalize mode: validate/report after Copilot execution
   log('INFO', '\n=== Phase 2: Artifact Validation ===');
   log('INFO', 'Checking artifacts captured by Copilot...');
-  const artifactsValid = runCommand('Artifact validation', 'node scripts/validate-artifacts.js');
+  const artifactsValid = runCommand('Artifact validation', 'node scripts/validate-artifacts.mjs');
 
   if (!artifactsValid) {
     log('ERROR', 'Artifact validation failed. Ensure Copilot completed the tasks and created screenshots/page-source files.');
@@ -164,7 +164,7 @@ async function main() {
   }
 
   log('INFO', '\n=== Phase 3: Report Generation ===');
-  const reportSuccess = runCommand('Report generation', 'node scripts/generate-report.js');
+  const reportSuccess = runCommand('Report generation', 'node scripts/generate-report.mjs');
 
   // Final summary
   log('INFO', '\n=== Orchestration Summary ===');
@@ -184,7 +184,7 @@ Review artifacts:
   • artifacts/run-report.md - Summary report
 
 For details on implementation, see: docs/implementation-notes.md
-For tool definitions, see: scripts/prompt-executor.js
+For tool definitions, see: scripts/prompt-executor.mjs
 
 ═══════════════════════════════════════════════════════════════════════
 `);

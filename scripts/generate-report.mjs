@@ -5,9 +5,9 @@
  * Summarizes targets reached, transitions, and outcomes
  */
 
-import fs from 'fs';
-import path from 'path';
-import { readFileSync } from 'fs';
+import fs from 'node:fs';
+import path from 'node:path';
+import { readFileSync } from 'node:fs';
 
 const ARTIFACTS_DIR = 'artifacts';
 const SCREENSHOT_DIR = path.join(ARTIFACTS_DIR, 'screenshots');

@@ -6,7 +6,7 @@
  * Invokes: prompts/settings-explore.md with Appium tools
  */
 
-import { executeTask } from './prompt-executor.js';
+import { executeTask } from './prompt-executor.mjs';
 
 async function main() {
   console.log('[run-explore] Starting Android Settings exploration via LLM');
