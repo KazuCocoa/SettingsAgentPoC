@@ -11,7 +11,7 @@ Use Appium MCP tools to perform a safe exploratory run in the default Android Se
 5. Navigate step by step using short action-observe loops.
 6. After each major transition, save a screenshot and page source.
 7. Reach at least two safe target pages.
-8. Return to a known screen if practical.
+8. Back to a known screen if practical.
 9. Write a concise run summary into `artifacts/logs/`.
 
 ## Safe targets

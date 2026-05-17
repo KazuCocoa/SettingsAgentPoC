@@ -4,14 +4,15 @@ Use Appium MCP tools to prove that the coding agent can navigate between major S
 
 ## Target sequence
 
-1. Start at the Settings home screen.
-2. Open Apps.
-3. Capture evidence.
-4. Return to home.
-5. Open About phone or the closest device information page.
-6. Capture evidence.
-7. Return to home if practical.
-8. Save a short summary of the route and any ambiguities encountered.
+1. Start an Appium session using `appium/capabilities.android.json`.
+2. Start at the Settings home screen.
+3. Open Apps.
+4. Capture evidence.
+5. Back to home.
+6. Open About phone or the closest device information page.
+7. Capture evidence.
+8. Back to home if practical.
+9. Save a short summary of the route and any ambiguities encountered.
 
 ## Rules
 

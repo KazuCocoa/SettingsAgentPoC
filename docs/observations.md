@@ -1,6 +1,7 @@
+
 # Observations
 
-Use this file to summarize findings after each run.
+**Note:** Use this file to summarize findings after each prompt/script-driven run (not chat). Observations should be filled out after each automated run using the provided scripts and prompt files.
 
 ## Run template
 
@@ -26,10 +27,10 @@ Use this file to summarize findings after each run.
 - Logs:
 
 ### Issues observed
-- 
+-
 
 ### Recovery behavior
-- 
+-
 
 ### Notes for next run
-- 
+-

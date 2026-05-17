@@ -1,4 +1,7 @@
+
 # PoC goals
+
+**Note:** This PoC is prompt-driven (not chat-driven). All navigation and evidence capture are orchestrated by scripts and prompt files, not by interactive chat.
 
 ## Goal
 

@@ -34,53 +34,8 @@ run-report.md
 **Purpose:** Pre-flight checks for device and SDK prerequisites.
 
 **Checks:**
-- `ANDROID_HOME` environment variable is set and valid path
-- `adb` command is available in PATH
-- At least one Android emulator is connected and online
-- ~~Appium server is reachable~~ (appium-mcp handles server startup)
 
 **Behavior:**
-- Logs timestamp, check name, and result
-- Exits with code 0 if all checks pass, 1 if any fail
-- Suitable for CI/CD integration
-
-#### `appium-client.js`
-**Purpose:** Wrapper around WebdriverIO for Appium session management and interactions.
-
-**Exports:**
-```javascript
-createSession()           // Create Android Settings session
-deleteSession()           // Cleanup session
-getScreenshot(filename)   // Capture screenshot, save to artifacts/screenshots/
-getPageSource(filename)   // Capture XML page source, save to artifacts/page-source/
-findElement(strategy, selector)  // Find single element
-findElements(strategy, selector) // Find multiple elements
-tap(element)             // Click/tap element
-tapByText(text)          // Tap element containing text (case-insensitive)
-back()                   // Press Android back button
-getCurrentPackage()      // Verify app package
-waitForElement(selector, timeout) // Wait for element visibility
-getSessionLog()          // Get action log (array of {timestamp, action, details})
-```
-
-**Configuration (from environment):**
-- `APPIUM_HOST` — Appium server hostname (default: localhost)
-- `APPIUM_PORT` — Appium server port (default: 4723)
-- `ACTION_TIMEOUT` — Timeout for element operations (default: 30000 ms)
-- `SESSION_TIMEOUT` — Appium session timeout (default: 120000 ms)
-
-**Capabilities (hardcoded):**
-```json
-{
-  "platformName": "Android",
-  "appium:automationName": "UiAutomator2",
-  "appium:deviceName": "Android Emulator",
-  "appium:appPackage": "com.android.settings",
-  "appium:appActivity": ".Settings",
-  "appium:noReset": true,
-  "appium:newCommandTimeout": 120
-}
-```
 
 #### `run-explore.js`
 **Purpose:** Execute exploratory navigation task (implements `prompts/settings-explore.md`).
@@ -98,19 +53,8 @@ getSessionLog()          // Get action log (array of {timestamp, action, details
 6. Delete session and exit
 
 **Target priority:**
-- About phone
-- Device info
-- Apps
-- Display
-- Battery
-- Storage
 
 **Artifacts generated:**
-- `01-initial-home.png` + `.xml`
-- `02-about-phone.png` + `.xml` (or similar target)
-- `03-back-to-home.png` + `.xml`
-- `04-[target2].png` + `.xml`
-- `artifacts/logs/run-explore.log` — Navigation path and summary
 
 #### `run-reachability.js`
 **Purpose:** Execute specific navigation sequence (implements `prompts/settings-reachability.md`).
@@ -135,37 +79,20 @@ Home -> Apps -> [capture] -> Home -> [capture] -> About phone -> [capture] -> Ho
 ```
 
 **Artifacts generated:**
-- `01-home.png` + `.xml`
-- `02-apps.png` + `.xml`
-- `03-home-after-apps.png` + `.xml`
-- `04-about-phone.png` + `.xml`
-- `05-home-final.png` + `.xml`
-- `artifacts/logs/run-reachability.log` — Sequence verification
 
 #### `validate-artifacts.js`
 **Purpose:** Quality assurance for captured artifacts.
 
 **Checks:**
-- `artifacts/screenshots/` exists and contains `.png` files
-- Each PNG is non-empty and has valid PNG magic bytes (`89 50 4E 47`)
-- `artifacts/page-source/` exists and contains `.xml` files
-- Each XML file is non-empty and contains XML structure markers (`<` and `>`)
-- `artifacts/logs/` exists and contains non-empty log files
 
 **Behavior:**
-- Reports total checks, passed, and failed
-- Exits 0 if all checks pass, 1 if any fail
 
 #### `generate-report.js`
 **Purpose:** Generate human-readable summary of all runs.
 
 **Reads:**
-- `artifacts/logs/run-explore.log` (if exists)
-- `artifacts/logs/run-reachability.log` (if exists)
-- Directory listings of `artifacts/screenshots/` and `artifacts/page-source/`
 
 **Generates:**
-- `artifacts/run-report.md` — Markdown report with:
   - Run summaries (extracted from logs)
   - Artifact counts and sizes
   - File listings
@@ -183,16 +110,8 @@ Home -> Apps -> [capture] -> Home -> [capture] -> About phone -> [capture] -> Ho
 6. Report generation
 
 **CLI flags:**
-- `--skip-validation` — Skip Phase 1
-- `--explore-only` — Run Phase 2 only
-- `--reachability-only` — Run Phase 4 only (skip Phase 2)
-- `--dry-run` — Show commands without executing
 
 **Behavior:**
-- Runs each phase in sequence via `execSync` with `stdio: inherit` (real-time output)
-- Continues even if non-critical phases fail (e.g., exploration can fail; reachability still runs)
-- Exits 0 if all phases succeed, 1 if any fail
-- Logs start, completion, and summary to console
 
 ### Data Flow
 
@@ -284,8 +203,6 @@ SKIP_ENV_VALIDATION=false
 
 ## Dependencies
 
-- **webdriverio@^8.37.0** — High-level WebDriver client for Appium
-- **@wdio/logger@^8.37.0** — Logging utility (optional, for enhanced debugging)
 
 Install with:
 ```bash
@@ -362,8 +279,3 @@ The appium-mcp server should start Appium automatically. If sessions fail to cre
 
 ## Notes
 
-- This implementation relies on **appium-mcp to manage Appium server lifecycle**. The validation step only checks device prerequisites (ANDROID_HOME, adb, emulator).
-- **No state cleanup:** `appium:noReset=true` preserves Settings state between runs. Change to `false` in `appium-client.js` if a fresh start is needed.
-- **UI variations:** Different Android versions, OEM ROMs, and locales may have different Settings labels. The `run-explore.js` and `run-reachability.js` scripts use text-based search and fallback to close matches.
-- **Performance:** First run may be slower due to WebdriverIO initialization. Subsequent runs are faster.
-- **CI/CD integration:** All scripts exit with meaningful exit codes and log to stdout, making them suitable for CI pipelines.
