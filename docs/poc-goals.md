@@ -4,6 +4,13 @@
 
 Verify that a coding agent can use Appium MCP to interact with the default Android Settings app in a safe, traceable way.
 
+## Execution contract
+
+1. `npm run poc` is the default end-to-end command.
+2. It must prepare prompts, invoke Copilot CLI automatically, and run the scenario.
+3. It must validate artifacts and generate a summary report in the same run.
+4. Manual mode remains available via `npm run poc:prepare` and `npm run poc:finalize`.
+
 ## Mandatory outcomes
 
 1. Start an Appium session successfully.

@@ -1,17 +1,35 @@
-node_modules
-dist
-build
-./coverage
-./logs
-./temp
-./test-results
-./test-reports
-./test-results
-.DS_Store
-src/tools/robot.ts
-src/scripts/eval-results/
-src/tools/documentation/uploads/embeddings-*.json
+# Node
+node_modules/
 package-lock.json
-.idea
-.vscode
-tsconfig.tsbuildinfo
+npm-debug.log
+
+# Environment
+.env
+.env.local
+
+# IDE & OS
+.DS_Store
+.idea/
+.vscode/settings.json
+.vscode/extensions.json
+*.swp
+*.swo
+
+# Build artifacts (keep directories but ignore contents)
+dist/
+build/
+coverage/
+
+# Test & temp
+temp/
+.temp/
+
+# PoC artifacts (screenshots, page source, logs are gitignored by default)
+# but directories are tracked via .gitkeep files
+artifacts/screenshots/*
+artifacts/page-source/*
+artifacts/logs/*
+!artifacts/screenshots/.gitkeep
+!artifacts/page-source/.gitkeep
+!artifacts/logs/.gitkeep
+artifacts/run-report.md

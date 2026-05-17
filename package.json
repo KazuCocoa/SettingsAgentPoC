@@ -1,0 +1,19 @@
+{
+  "name": "settings-agent-poc",
+  "version": "0.1.0",
+  "description": "PoC for using a coding agent with Appium MCP to explore the Android Settings app",
+  "type": "module",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "scripts": {
+    "validate-env": "node scripts/validate-environment.js",
+    "poc": "node scripts/run-poc.js",
+    "poc:prepare": "node scripts/run-poc.js --prepare-only",
+    "poc:finalize": "node scripts/run-poc.js --finalize",
+    "poc:explore": "node scripts/run-poc.js --explore-only",
+    "poc:reachability": "node scripts/run-poc.js --reachability-only",
+    "validate-artifacts": "node scripts/validate-artifacts.js",
+    "report": "node scripts/generate-report.js"
+  }
+}

@@ -50,20 +50,78 @@ settings-agent-poc/
 ## Prerequisites
 
 1. Install Node.js.
-2. Install and run Appium.
-3. Install Android SDK and create or start an Android emulator.
-4. Confirm the emulator is visible through `adb devices`.
-5. Confirm the Settings app package/activity for your emulator if needed.
-6. Configure your MCP-capable coding agent to launch `appium-mcp`.
+2. Install Android SDK and create or start an Android emulator.
+3. Confirm the emulator is visible through `adb devices`.
+4. Configure GitHub Copilot in VS Code (with MCP support for appium-mcp).
 
-## Run outline
+## Quick Start (LLM-Driven Execution via Copilot CLI)
 
-1. Start the Android emulator.
-2. Start Appium locally.
-3. Open this repo in VS Code.
-4. Ensure `.vscode/mcp.json` is recognized by your coding agent host.
-5. Open `prompts/settings-explore.md` and ask the agent to execute the task using Appium MCP tools.
-6. Review `artifacts/` after the run.
+The PoC is designed to be driven by GitHub Copilot using Appium MCP tools. The workflow:
+
+```bash
+# 1. Install dependencies
+npm install
+
+# 2. Create .env file from template (configure ANDROID_HOME)
+cp .env.example .env
+
+# 3. Validate environment (checks Android SDK, adb, emulator)
+npm run validate-env
+
+# 4. Run the PoC (auto mode)
+npm run poc
+```
+
+This will:
+- Validate your Android setup
+- Prepare exploration and reachability prompts
+- Feed prompts to Copilot CLI automatically (`copilot -p ...`)
+- Let Copilot use Appium MCP tools to navigate Settings and capture evidence
+- Validate artifacts and generate a report
+
+### How It Works
+
+1. **Environment Check** — `npm run validate-env` ensures you have Android SDK, adb, and an active emulator
+2. **Prompt Preparation** — `npm run poc` prepares prompts with tool definitions for Copilot
+3. **LLM Execution** — `npm run poc` executes prompts via Copilot CLI in non-interactive mode
+4. **Tool Usage** — Copilot has access to Appium MCP tools:
+   - `create_session` / `delete_session` — Manage Appium sessions
+   - `take_screenshot` / `get_page_source` — Capture evidence
+   - `find_element` / `tap_element` — Navigate UI
+   - `press_back` — Go back
+   - `get_current_package` — Verify Settings app
+5. **Evidence Collection** — Copilot captures screenshots, page source, and logs navigation
+6. **Validation & Reporting** — `npm run poc` validates artifacts and generates a summary report
+
+## Execution Modes
+
+```bash
+# Default: end-to-end (Copilot CLI execution + finalize)
+npm run poc
+
+# Manual mode: only prepare prompts for Copilot Chat
+npm run poc:prepare
+
+# Finalize after manual Copilot Chat execution
+npm run poc:finalize
+```
+
+### Individual Task Execution
+
+```bash
+# Run specific tasks
+npm run poc:explore        # Prepare exploration prompt for Copilot
+npm run poc:reachability   # Prepare reachability prompt for Copilot
+npm run validate-artifacts # Validate captured artifacts (after Copilot execution)
+npm run report             # Generate report from artifacts
+```
+
+### CLI Flags
+
+- `--skip-validation` — Skip environment checks
+- `--prepare-only` — Prepare prompts only (manual Copilot Chat execution)
+- `--explore-only` — Prepare exploration prompt only
+- `--reachability-only` — Prepare reachability prompt only
 
 ## Recommended first tasks
 

@@ -1,0 +1,12 @@
+{
+  "servers": {
+    "appium-mcp": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["appium-mcp@latest"],
+      "env": {
+        "ANDROID_HOME": "${env:ANDROID_HOME}"
+      }
+    }
+  }
+}
