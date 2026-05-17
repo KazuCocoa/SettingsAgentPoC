@@ -84,14 +84,8 @@ This will:
 1. **Environment Check** — `npm run validate-env` ensures you have Android SDK, adb, and an active emulator
 2. **Prompt Preparation** — `npm run poc` prepares prompts with tool definitions for Copilot
 3. **LLM Execution** — `npm run poc` executes prompts via Copilot CLI in non-interactive mode
-4. **Tool Usage** — Copilot has access to Appium MCP tools:
-   - `create_session` / `delete_session` — Manage Appium sessions
-   - `take_screenshot` / `get_page_source` — Capture evidence
-   - `find_element` / `tap_element` — Navigate UI
-   - `press_back` — Go back
-   - `get_current_package` — Verify Settings app
-5. **Evidence Collection** — Copilot captures screenshots, page source, and logs navigation
-6. **Validation & Reporting** — `npm run poc` validates artifacts and generates a summary report
+4. **Evidence Collection** — Copilot captures screenshots, page source, and logs navigation
+5. **Validation & Reporting** — `npm run poc` validates artifacts and generates a summary report
 
 ## Execution Modes
 

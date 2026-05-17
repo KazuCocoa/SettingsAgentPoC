@@ -10,55 +10,6 @@ import fs from 'fs';
 import path from 'path';
 import { spawnSync } from 'child_process';
 
-const AVAILABLE_TOOLS = {
-  create_session: {
-    description: 'Create a new Appium session for Android Settings',
-    params: {},
-  },
-  delete_session: {
-    description: 'Delete and cleanup the Appium session',
-    params: {},
-  },
-  take_screenshot: {
-    description: 'Capture a screenshot of the current screen',
-    params: {
-      filename: { type: 'string', description: 'Filename for the screenshot (without path)' },
-    },
-  },
-  get_page_source: {
-    description: 'Capture the page source (XML) of the current screen',
-    params: {
-      filename: { type: 'string', description: 'Filename for the page source (without path)' },
-    },
-  },
-  find_element: {
-    description: 'Find an element on the current screen by text or selector',
-    params: {
-      text: { type: 'string', description: 'Text to search for on the screen' },
-    },
-  },
-  tap_element: {
-    description: 'Tap an element found by text',
-    params: {
-      text: { type: 'string', description: 'Text of the element to tap' },
-    },
-  },
-  press_back: {
-    description: 'Press the Android back button',
-    params: {},
-  },
-  get_current_package: {
-    description: 'Get the current app package name to verify Settings is active',
-    params: {},
-  },
-  log_action: {
-    description: 'Log a navigation or decision action',
-    params: {
-      action: { type: 'string', description: 'Description of the action taken' },
-    },
-  },
-};
-
 const executedActions = [];
 
 function runCopilotCli(prompt, taskName) {
@@ -133,29 +84,7 @@ async function invokeLLM(prompt, taskName) {
     fs.mkdirSync(dir, { recursive: true });
   }
 
-  // Write prompt with tool definitions
-  const toolsDescription = `\n\n## Available Tools
-
-You have access to the following tools to interact with the Android Settings app:
-
-${Object.entries(AVAILABLE_TOOLS)
-  .map(
-    ([name, tool]) =>
-      `### ${name}
-Description: ${tool.description}
-Parameters: ${Object.keys(tool.params).length > 0 ? JSON.stringify(tool.params, null, 2) : 'None'}`
-  )
-  .join('\n\n')}
-
-When you need to use a tool, use this format in your response:
-\`\`\`tool-call
-tool_name: <tool_name>
-param1: <value1>
-param2: <value2>
-\`\`\`
-`;
-
-  fs.writeFileSync(promptFile, prompt + toolsDescription, 'utf-8');
+  fs.writeFileSync(promptFile, prompt, 'utf-8');
 
   console.log(`[Executor] Prompt saved to: ${promptFile}`);
 
@@ -179,7 +108,7 @@ param2: <value2>
   }
 
   console.log('[Executor] Running Copilot CLI in non-interactive mode...');
-  const cliResult = runCopilotCli(prompt + toolsDescription, taskName);
+  const cliResult = runCopilotCli(prompt, taskName);
 
   return {
     promptFile,
@@ -215,9 +144,8 @@ async function executeTask(promptFile, taskName) {
     promptFile: llmResult.promptFile,
     status: llmResult.status,
     outputFile: llmResult.outputFile,
-    tools: AVAILABLE_TOOLS,
     executedActions,
   };
 }
 
-export { executeTask, AVAILABLE_TOOLS, executedActions };
+export { executeTask, executedActions };

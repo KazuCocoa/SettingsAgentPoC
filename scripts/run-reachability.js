@@ -31,10 +31,6 @@ async function main() {
       console.log('   - Capture state at each major transition');
       console.log('   - Log the navigation sequence');
     }
-    console.log('\n[run-reachability] Available tools for Copilot:');
-    Object.keys(result.tools).forEach((toolName) => {
-      console.log(`   - ${toolName}: ${result.tools[toolName].description}`);
-    });
 
     console.log('\n[run-reachability] === Next Steps ===');
     console.log('1. Review artifacts in artifacts/screenshots/ and artifacts/page-source/');
