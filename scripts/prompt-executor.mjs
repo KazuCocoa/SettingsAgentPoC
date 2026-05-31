@@ -12,6 +12,48 @@ import { spawnSync } from 'node:child_process';
 
 const executedActions = [];
 
+function getAppiumMcpCommandArgs() {
+  const command = process.env.APPIUM_MCP_COMMAND || 'sh';
+  const args = process.env.APPIUM_MCP_ARGS
+    ? process.env.APPIUM_MCP_ARGS.split(' ').filter(Boolean)
+    : ['scripts/appium-mcp-with-log.sh'];
+
+  return { command, args };
+}
+
+function addCodexAppiumMcpArgs(args) {
+  if (process.env.APPIUM_MCP_ENABLED === 'false') {
+    return;
+  }
+
+  const { command, args: mcpArgs } = getAppiumMcpCommandArgs();
+
+  args.push(
+    '-c',
+    `mcp_servers.appium-mcp.command=${JSON.stringify(command)}`,
+    '-c',
+    `mcp_servers.appium-mcp.args=${JSON.stringify(mcpArgs)}`,
+    '-c',
+    `mcp_servers.appium-mcp.cwd=${JSON.stringify(process.cwd())}`,
+    '-c',
+    `mcp_servers.appium-mcp.env.APPIUM_MCP_LOG_FILE=${JSON.stringify(process.env.APPIUM_MCP_LOG_FILE || 'artifacts/logs/appium-mcp.log')}`,
+    '-c',
+    // CI doesn't need to work as a UI mode.
+    'mcp_servers.appium-mcp.env.NO_UI="true"'
+  );
+
+  if (process.env.ANDROID_HOME) {
+    args.push(
+      '-c',
+      `mcp_servers.appium-mcp.env.ANDROID_HOME=${JSON.stringify(process.env.ANDROID_HOME)}`
+    );
+  }
+}
+
+function shouldBypassCodexApprovalsAndSandbox() {
+  return process.env.CODEX_BYPASS_APPROVALS_AND_SANDBOX !== 'false';
+}
+
 const PROVIDERS = {
   codex: {
     binary: 'codex',
@@ -29,15 +71,19 @@ const PROVIDERS = {
         process.cwd(),
         '--add-dir',
         process.cwd(),
-        '--sandbox',
-        process.env.CODEX_SANDBOX || 'workspace-write',
-        '--ask-for-approval',
-        process.env.CODEX_APPROVAL_POLICY || 'never',
       ];
+
+      if (shouldBypassCodexApprovalsAndSandbox()) {
+        args.push('--dangerously-bypass-approvals-and-sandbox');
+      } else {
+        args.push('--sandbox', process.env.CODEX_SANDBOX || 'workspace-write');
+      }
 
       if (model) {
         args.push('--model', model);
       }
+
+      addCodexAppiumMcpArgs(args);
 
       args.push('-');
       return args;
@@ -79,17 +125,23 @@ function getProvider() {
 
 function getProviderModel(providerName) {
   if (providerName === 'codex') {
-    return process.env.CODEX_MODEL || process.env.AGENT_MODEL || process.env.LLM_MODEL || process.env.COPILOT_MODEL || 'gpt-5.3-codex';
+    return process.env.CODEX_MODEL || process.env.AGENT_MODEL || process.env.LLM_MODEL;
   }
 
   return process.env.COPILOT_MODEL || process.env.AGENT_MODEL || process.env.LLM_MODEL || 'gpt-5.3-codex';
 }
 
 function getProviderTimeoutMs(providerName) {
-  const timeout = providerName === 'codex'
-    ? process.env.CODEX_CLI_TIMEOUT_MS || process.env.AGENT_CLI_TIMEOUT_MS || process.env.LLM_CLI_TIMEOUT_MS || process.env.COPILOT_CLI_TIMEOUT_MS
-    : process.env.COPILOT_CLI_TIMEOUT_MS || process.env.AGENT_CLI_TIMEOUT_MS || process.env.LLM_CLI_TIMEOUT_MS;
+  if (providerName === 'codex') {
+    if (process.env.CODEX_CLI_TIMEOUT_MS) {
+      return parseInt(process.env.CODEX_CLI_TIMEOUT_MS, 10);
+    }
 
+    const genericTimeout = process.env.AGENT_CLI_TIMEOUT_MS || process.env.LLM_CLI_TIMEOUT_MS || process.env.COPILOT_CLI_TIMEOUT_MS;
+    return Math.max(parseInt(genericTimeout || '600000', 10), 600000);
+  }
+
+  const timeout = process.env.COPILOT_CLI_TIMEOUT_MS || process.env.AGENT_CLI_TIMEOUT_MS || process.env.LLM_CLI_TIMEOUT_MS;
   return parseInt(timeout || '120000', 10);
 }
 
@@ -105,16 +157,38 @@ function getManualOnly() {
     || process.env.COPILOT_MANUAL_ONLY === 'true';
 }
 
+function withAutomationFooter(prompt, providerName) {
+  if (
+    providerName !== 'codex'
+    || process.env.CODEX_AUTOMATION_FOOTER === 'false'
+    || prompt.includes('## Automation completion requirements')
+  ) {
+    return prompt;
+  }
+
+  return `${prompt.trim()}
+
+## Automation completion requirements
+
+- Keep this run bounded. Do not continue exploring after the requested targets are complete.
+- Before finishing, delete/close the Appium session if one was created.
+- Once the requested screenshots, page source files, and run summary are written, stop tool use.
+- Verify page source artifacts are real XML with UI hierarchy content. Do not leave placeholder files such as "Killed" or empty XML artifacts.
+- Final response must be a short completion summary that starts with: TASK_COMPLETE
+`;
+}
+
 function runProviderCli(provider, prompt, taskName) {
   const model = getProviderModel(provider.name);
   const timeoutMs = getProviderTimeoutMs(provider.name);
   const outputFile = `artifacts/logs/${taskName}-${provider.outputSuffix}-output.txt`;
-  const args = provider.buildArgs({ model, prompt });
+  const executablePrompt = withAutomationFooter(prompt, provider.name);
+  const args = provider.buildArgs({ model, prompt: executablePrompt });
 
   const result = spawnSync(provider.binary, args, {
     cwd: process.cwd(),
     encoding: 'utf-8',
-    input: provider.promptViaStdin ? prompt : undefined,
+    input: provider.promptViaStdin ? executablePrompt : undefined,
     stdio: 'pipe',
     timeout: timeoutMs,
     maxBuffer: 10 * 1024 * 1024,
@@ -154,6 +228,14 @@ function runProviderCli(provider, prompt, taskName) {
     throw new Error(`${provider.displayName} exited with code ${result.status}${stderr ? `: ${stderr}` : ''}`);
   }
 
+  const outputText = `${result.stdout || ''}\n${result.stderr || ''}`;
+  if (provider.name === 'codex' && outputText.includes('user cancelled MCP tool call')) {
+    throw new Error(
+      `${provider.displayName} reported cancelled MCP tool calls. ` +
+      'For automated Appium MCP runs, keep CODEX_BYPASS_APPROVALS_AND_SANDBOX unset or set it to true.'
+    );
+  }
+
   return {
     outputFile,
     response: (result.stdout || '').trim(),
@@ -162,6 +244,7 @@ function runProviderCli(provider, prompt, taskName) {
 
 async function invokeLLM(prompt, taskName) {
   const provider = getProvider();
+  const executablePrompt = withAutomationFooter(prompt, provider.name);
 
   console.log(`[Executor] Invoking LLM for task: ${taskName}`);
   console.log(`[Executor] Preparing prompt for ${provider.displayName}...`);
@@ -173,7 +256,7 @@ async function invokeLLM(prompt, taskName) {
     fs.mkdirSync(dir, { recursive: true });
   }
 
-  fs.writeFileSync(promptFile, prompt, 'utf-8');
+  fs.writeFileSync(promptFile, executablePrompt, 'utf-8');
 
   console.log(`[Executor] Prompt saved to: ${promptFile}`);
 
@@ -209,7 +292,7 @@ async function invokeLLM(prompt, taskName) {
   }
 
   console.log(`[Executor] Running ${provider.displayName} in non-interactive mode...`);
-  const cliResult = runProviderCli(provider, prompt, taskName);
+  const cliResult = runProviderCli(provider, executablePrompt, taskName);
 
   return {
     promptFile,
