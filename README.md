@@ -17,7 +17,7 @@ This PoC intentionally focuses on **traceability** and **safe exploration** rath
 
 ## Suggested stack
 
-- VS Code with GitHub Copilot Agent Mode
+- Codex or VS Code with GitHub Copilot Agent Mode
 - MCP configuration pointing to `appium-mcp`
 - Local Appium server
 - Android SDK + emulator
@@ -52,11 +52,11 @@ settings-agent-poc/
 1. Install Node.js.
 2. Install Android SDK and create or start an Android emulator.
 3. Confirm the emulator is visible through `adb devices`.
-4. Configure GitHub Copilot in VS Code (with MCP support for appium-mcp).
+4. Configure Codex or GitHub Copilot in VS Code (with MCP support for appium-mcp).
 
-## Quick Start (LLM-Driven Execution via Copilot CLI)
+## Quick Start (LLM-Driven Execution via Agent CLI)
 
-The PoC is designed to be driven by GitHub Copilot using Appium MCP tools. The workflow:
+The PoC is designed to be driven by Codex or GitHub Copilot using Appium MCP tools. The default provider is Codex.
 
 ```bash
 # 1. Install dependencies
@@ -72,31 +72,40 @@ npm run validate-env
 npm run poc
 ```
 
+To use Copilot instead:
+
+```bash
+AGENT_PROVIDER=copilot npm run poc
+```
+
 This will:
 - Validate your Android setup
 - Prepare exploration and reachability prompts
-- Feed prompts to Copilot CLI automatically (`copilot -p ...`)
-- Let Copilot use Appium MCP tools to navigate Settings and capture evidence
+- Feed prompts to the selected agent CLI automatically (`codex exec ...` or `copilot -p ...`)
+- Let the agent use Appium MCP tools to navigate Settings and capture evidence
 - Validate artifacts and generate a report
 
 ### How It Works
 
 1. **Environment Check** — `npm run validate-env` ensures you have Android SDK, adb, and an active emulator
-2. **Prompt Preparation** — `npm run poc` prepares prompts with tool definitions for Copilot
-3. **LLM Execution** — `npm run poc` executes prompts via Copilot CLI in non-interactive mode
-4. **Evidence Collection** — Copilot captures screenshots, page source, and logs navigation
+2. **Prompt Preparation** — `npm run poc` prepares prompts for the selected agent
+3. **LLM Execution** — `npm run poc` executes prompts via Codex CLI or Copilot CLI in non-interactive mode
+4. **Evidence Collection** — The agent captures screenshots, page source, and logs navigation
 5. **Validation & Reporting** — `npm run poc` validates artifacts and generates a summary report
 
 ## Execution Modes
 
 ```bash
-# Default: end-to-end (Copilot CLI execution + finalize)
+# Default: end-to-end (Codex CLI execution + finalize)
 npm run poc
 
-# Manual mode: only prepare prompts for Copilot Chat
+# Copilot CLI execution + finalize
+AGENT_PROVIDER=copilot npm run poc
+
+# Manual mode: only prepare prompts for agent chat
 npm run poc:prepare
 
-# Finalize after manual Copilot Chat execution
+# Finalize after manual agent execution
 npm run poc:finalize
 ```
 
@@ -104,18 +113,25 @@ npm run poc:finalize
 
 ```bash
 # Run specific tasks
-npm run poc:explore        # Prepare exploration prompt for Copilot
-npm run poc:reachability   # Prepare reachability prompt for Copilot
-npm run validate-artifacts # Validate captured artifacts (after Copilot execution)
+npm run poc:explore        # Prepare and execute exploration prompt
+npm run poc:reachability   # Prepare and execute reachability prompt
+npm run validate-artifacts # Validate captured artifacts (after agent execution)
 npm run report             # Generate report from artifacts
 ```
 
 ### CLI Flags
 
 - `--skip-validation` — Skip environment checks
-- `--prepare-only` — Prepare prompts only (manual Copilot Chat execution)
+- `--prepare-only` — Prepare prompts only (manual agent execution)
 - `--explore-only` — Prepare exploration prompt only
 - `--reachability-only` — Prepare reachability prompt only
+
+### Agent Environment Variables
+
+- `AGENT_PROVIDER` — `codex` (default) or `copilot`
+- `AGENT_MODEL` — model passed to the selected CLI
+- `AGENT_CLI_TIMEOUT_MS` — CLI timeout in milliseconds
+- `AGENT_MANUAL_FALLBACK=true` — save prompts instead of failing when the selected CLI is unavailable
 
 ## Recommended first tasks
 

@@ -3,7 +3,7 @@
 /**
  * Prompt Executor for Settings Agent PoC
  * Reads a prompt and invokes the LLM to execute it with available tools
- * Supports Copilot CLI or Anthropic API
+ * Supports Codex CLI or Copilot CLI
  */
 
 import fs from 'node:fs';
@@ -12,23 +12,109 @@ import { spawnSync } from 'node:child_process';
 
 const executedActions = [];
 
-function runCopilotCli(prompt, taskName) {
-  const model = process.env.COPILOT_MODEL || 'gpt-5.3-codex';
-  const timeoutMs = parseInt(process.env.COPILOT_CLI_TIMEOUT_MS || '120000', 10);
-  const outputFile = `artifacts/logs/${taskName}-copilot-output.txt`;
-  const args = [
-    '--model',
-    model,
-    '--allow-all-tools',
-    '--add-dir',
-    process.cwd(),
-    '-p',
-    prompt,
-  ];
+const PROVIDERS = {
+  codex: {
+    binary: 'codex',
+    displayName: 'Codex CLI',
+    status: 'executed-via-codex-cli',
+    awaitingStatus: 'awaiting-codex-execution',
+    outputSuffix: 'codex',
+    manualName: 'Codex',
+    manualProduct: 'Codex',
+    promptViaStdin: true,
+    buildArgs({ model }) {
+      const args = [
+        'exec',
+        '--cd',
+        process.cwd(),
+        '--add-dir',
+        process.cwd(),
+        '--sandbox',
+        process.env.CODEX_SANDBOX || 'workspace-write',
+        '--ask-for-approval',
+        process.env.CODEX_APPROVAL_POLICY || 'never',
+      ];
 
-  const result = spawnSync('copilot', args, {
+      if (model) {
+        args.push('--model', model);
+      }
+
+      args.push('-');
+      return args;
+    },
+  },
+  copilot: {
+    binary: 'copilot',
+    displayName: 'Copilot CLI',
+    status: 'executed-via-copilot-cli',
+    awaitingStatus: 'awaiting-copilot-execution',
+    outputSuffix: 'copilot',
+    manualName: 'Copilot Chat',
+    manualProduct: 'GitHub Copilot Chat',
+    buildArgs({ model, prompt }) {
+      return [
+        '--model',
+        model,
+        '--allow-all-tools',
+        '--add-dir',
+        process.cwd(),
+        '-p',
+        prompt,
+      ];
+    },
+  },
+};
+
+function getProvider() {
+  const providerName = (process.env.AGENT_PROVIDER || process.env.LLM_PROVIDER || 'codex').toLowerCase();
+  const provider = PROVIDERS[providerName];
+
+  if (!provider) {
+    const names = Object.keys(PROVIDERS).join(', ');
+    throw new Error(`Unsupported AGENT_PROVIDER "${providerName}". Supported providers: ${names}.`);
+  }
+
+  return { ...provider, name: providerName };
+}
+
+function getProviderModel(providerName) {
+  if (providerName === 'codex') {
+    return process.env.CODEX_MODEL || process.env.AGENT_MODEL || process.env.LLM_MODEL || process.env.COPILOT_MODEL || 'gpt-5.3-codex';
+  }
+
+  return process.env.COPILOT_MODEL || process.env.AGENT_MODEL || process.env.LLM_MODEL || 'gpt-5.3-codex';
+}
+
+function getProviderTimeoutMs(providerName) {
+  const timeout = providerName === 'codex'
+    ? process.env.CODEX_CLI_TIMEOUT_MS || process.env.AGENT_CLI_TIMEOUT_MS || process.env.LLM_CLI_TIMEOUT_MS || process.env.COPILOT_CLI_TIMEOUT_MS
+    : process.env.COPILOT_CLI_TIMEOUT_MS || process.env.AGENT_CLI_TIMEOUT_MS || process.env.LLM_CLI_TIMEOUT_MS;
+
+  return parseInt(timeout || '120000', 10);
+}
+
+function getManualFallback() {
+  return process.env.AGENT_MANUAL_FALLBACK === 'true'
+    || process.env.LLM_MANUAL_FALLBACK === 'true'
+    || process.env.COPILOT_MANUAL_FALLBACK === 'true';
+}
+
+function getManualOnly() {
+  return process.env.AGENT_MANUAL_ONLY === 'true'
+    || process.env.LLM_MANUAL_ONLY === 'true'
+    || process.env.COPILOT_MANUAL_ONLY === 'true';
+}
+
+function runProviderCli(provider, prompt, taskName) {
+  const model = getProviderModel(provider.name);
+  const timeoutMs = getProviderTimeoutMs(provider.name);
+  const outputFile = `artifacts/logs/${taskName}-${provider.outputSuffix}-output.txt`;
+  const args = provider.buildArgs({ model, prompt });
+
+  const result = spawnSync(provider.binary, args, {
     cwd: process.cwd(),
     encoding: 'utf-8',
+    input: provider.promptViaStdin ? prompt : undefined,
     stdio: 'pipe',
     timeout: timeoutMs,
     maxBuffer: 10 * 1024 * 1024,
@@ -41,6 +127,7 @@ function runCopilotCli(prompt, taskName) {
 
   const combinedOutput = [
     `# Task: ${taskName}`,
+    `# Provider: ${provider.displayName}`,
     `# Model: ${model}`,
     `# Exit code: ${result.status ?? 'unknown'}`,
     '',
@@ -55,16 +142,16 @@ function runCopilotCli(prompt, taskName) {
   if (result.error) {
     if (result.error.code === 'ETIMEDOUT') {
       throw new Error(
-        `Copilot CLI timed out after ${timeoutMs}ms. Increase COPILOT_CLI_TIMEOUT_MS or run manual mode with npm run poc:prepare.`
+        `${provider.displayName} timed out after ${timeoutMs}ms. Increase ${provider.name.toUpperCase()}_CLI_TIMEOUT_MS or run manual mode with npm run poc:prepare.`
       );
     }
 
-    throw new Error(`Failed to execute copilot CLI: ${result.error.message}`);
+    throw new Error(`Failed to execute ${provider.displayName}: ${result.error.message}`);
   }
 
   if (result.status !== 0) {
     const stderr = (result.stderr || '').trim();
-    throw new Error(`Copilot CLI exited with code ${result.status}${stderr ? `: ${stderr}` : ''}`);
+    throw new Error(`${provider.displayName} exited with code ${result.status}${stderr ? `: ${stderr}` : ''}`);
   }
 
   return {
@@ -74,8 +161,10 @@ function runCopilotCli(prompt, taskName) {
 }
 
 async function invokeLLM(prompt, taskName) {
+  const provider = getProvider();
+
   console.log(`[Executor] Invoking LLM for task: ${taskName}`);
-  console.log('[Executor] Preparing prompt for Copilot CLI...');
+  console.log(`[Executor] Preparing prompt for ${provider.displayName}...`);
 
   // Create a temporary file with the prompt
   const promptFile = `artifacts/logs/${taskName}-prompt.txt`;
@@ -88,33 +177,46 @@ async function invokeLLM(prompt, taskName) {
 
   console.log(`[Executor] Prompt saved to: ${promptFile}`);
 
-  const fallbackToManual = process.env.COPILOT_MANUAL_FALLBACK === 'true';
-  const probe = spawnSync('copilot', ['--version'], { encoding: 'utf-8', stdio: 'pipe' });
+  if (getManualOnly()) {
+    console.log(`[Executor] Manual-only mode enabled. Skipping ${provider.displayName} execution.`);
+    return {
+      promptFile,
+      provider: provider.name,
+      status: provider.awaitingStatus,
+      message:
+        `Open the prompt file above in ${provider.manualProduct} and execute it manually.`,
+    };
+  }
+
+  const fallbackToManual = getManualFallback();
+  const probe = spawnSync(provider.binary, ['--version'], { encoding: 'utf-8', stdio: 'pipe' });
   if (probe.error || probe.status !== 0) {
     if (!fallbackToManual) {
       const reason = probe.error ? probe.error.message : `exit code ${probe.status}`;
       throw new Error(
-        `Copilot CLI is not available (${reason}). Install/configure it or set COPILOT_MANUAL_FALLBACK=true to prepare prompts without executing.`
+        `${provider.displayName} is not available (${reason}). Install/configure it or set AGENT_MANUAL_FALLBACK=true to prepare prompts without executing.`
       );
     }
 
-    console.log('[Executor] Copilot CLI not available. Falling back to manual Copilot Chat execution.');
+    console.log(`[Executor] ${provider.displayName} not available. Falling back to manual ${provider.manualName} execution.`);
     return {
       promptFile,
-      status: 'awaiting-copilot-execution',
+      provider: provider.name,
+      status: provider.awaitingStatus,
       message:
-        'Open the prompt file above in GitHub Copilot Chat and execute it manually.',
+        `Open the prompt file above in ${provider.manualProduct} and execute it manually.`,
     };
   }
 
-  console.log('[Executor] Running Copilot CLI in non-interactive mode...');
-  const cliResult = runCopilotCli(prompt, taskName);
+  console.log(`[Executor] Running ${provider.displayName} in non-interactive mode...`);
+  const cliResult = runProviderCli(provider, prompt, taskName);
 
   return {
     promptFile,
-    status: 'executed-via-copilot-cli',
+    provider: provider.name,
+    status: provider.status,
     outputFile: cliResult.outputFile,
-    message: 'Copilot CLI executed the task prompt successfully.',
+    message: `${provider.displayName} executed the task prompt successfully.`,
   };
 }
 
@@ -135,12 +237,12 @@ async function executeTask(promptFile, taskName) {
   console.log(`\n[Executor] LLM Invocation Result:`);
   console.log(llmResult);
 
-  // Note: In the current implementation, the LLM (Copilot) runs in VS Code Chat
-  // and uses the tools defined above. The executor provides the prompt and tool definitions.
-  // Once Copilot CLI becomes available, this can be fully automated.
+  // The selected agent uses the MCP tools configured in the editor or CLI environment.
+  // The executor provides the task prompt and records the agent output for review.
 
   return {
     taskName,
+    provider: llmResult.provider,
     promptFile: llmResult.promptFile,
     status: llmResult.status,
     outputFile: llmResult.outputFile,

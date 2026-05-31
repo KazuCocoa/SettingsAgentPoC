@@ -2,7 +2,7 @@
 
 /**
  * Master orchestrator for Settings Agent PoC
- * Prepares environment, guides user to execute prompts via GitHub Copilot Chat
+ * Prepares environment, guides user to execute prompts via an agent
  * Validates artifacts and generates reports
  */
 
@@ -15,6 +15,7 @@ const exploreOnly = args.includes('--explore-only');
 const reachabilityOnly = args.includes('--reachability-only');
 const finalize = args.includes('--finalize');
 const prepareOnly = args.includes('--prepare-only');
+const agentProvider = process.env.AGENT_PROVIDER || process.env.LLM_PROVIDER || 'codex';
 
 function log(level, message) {
   const timestamp = new Date().toISOString();
@@ -48,19 +49,19 @@ STEP 1: Open the Prompt
 1. In VS Code, open the prompt file: ${promptPath}
 2. Or copy the prompt from: artifacts/logs/${taskName}-prompt.txt
 
-STEP 2: Start GitHub Copilot Chat
-──────────────────────────────────
-1. Open GitHub Copilot Chat in VS Code (Cmd+Shift+I on macOS, Ctrl+Shift+I on Windows/Linux)
+STEP 2: Start Codex or GitHub Copilot Chat
+──────────────────────────────────────────
+1. Open Codex or GitHub Copilot Chat in VS Code
 2. Select a code file or open the prompt file above
 
-STEP 3: Ask Copilot to Execute
-───────────────────────────────
-1. Paste the prompt into Copilot Chat
+STEP 3: Ask the Agent to Execute
+────────────────────────────────
+1. Paste the prompt into the agent chat
 2. Or ask: "Read this prompt and execute it using the available tools"
 
-STEP 4: Available Tools for Copilot
-────────────────────────────────────
-Copilot has access to these tools (via Appium MCP):
+STEP 4: Available Tools
+───────────────────────
+The agent has access to these tools (via Appium MCP):
 
   • create_session          - Create Appium session for Settings
   • delete_session          - Cleanup session
@@ -81,7 +82,7 @@ STEP 5: Safety Guidelines
 
 STEP 6: What to Expect
 ──────────────────────
-- Copilot will analyze the current screen
+- The agent will analyze the current screen
 - Decide actions based on visible UI
 - Recover from label variations (About device vs About phone)
 - Navigate safely and capture evidence
@@ -93,8 +94,12 @@ STEP 6: What to Expect
 
 async function main() {
   log('INFO', '=== Settings Agent PoC Orchestrator (LLM-Driven) ===');
-  log('INFO', `Mode: ${finalize ? 'finalize (post-Copilot validation/report)' : prepareOnly ? 'prepare-only (manual Copilot Chat)' : 'auto (Copilot CLI + finalize)'}`);
-  log('INFO', 'Execution model: Copilot CLI + Appium MCP tools');
+  log('INFO', `Mode: ${finalize ? 'finalize (post-agent validation/report)' : prepareOnly ? 'prepare-only (manual agent chat)' : `auto (${agentProvider} CLI + finalize)`}`);
+  log('INFO', `Execution model: ${agentProvider} CLI + Appium MCP tools`);
+
+  if (prepareOnly) {
+    process.env.AGENT_MANUAL_ONLY = 'true';
+  }
 
   // Phase 1: Environment validation
   if (!skipValidation) {
@@ -148,18 +153,18 @@ async function main() {
 
     if (prepareOnly) {
       log('INFO', '\n=== Prepare Mode Complete ===');
-      log('INFO', 'Execute prompts in Copilot Chat first, then run: npm run poc:finalize');
+      log('INFO', 'Execute prompts in Codex or Copilot Chat first, then run: npm run poc:finalize');
       process.exit(0);
     }
   }
 
-  // Finalize mode: validate/report after Copilot execution
+  // Finalize mode: validate/report after agent execution
   log('INFO', '\n=== Phase 2: Artifact Validation ===');
-  log('INFO', 'Checking artifacts captured by Copilot...');
+  log('INFO', 'Checking artifacts captured by the agent...');
   const artifactsValid = runCommand('Artifact validation', 'node scripts/validate-artifacts.mjs');
 
   if (!artifactsValid) {
-    log('ERROR', 'Artifact validation failed. Ensure Copilot completed the tasks and created screenshots/page-source files.');
+    log('ERROR', 'Artifact validation failed. Ensure the agent completed the tasks and created screenshots/page-source files.');
     process.exit(1);
   }
 
