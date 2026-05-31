@@ -5,7 +5,7 @@ Use Appium MCP tools to prove that the coding agent can navigate between major S
 ## Target sequence
 
 1. Start Appium session using `appium/capabilities.android.json`.
-2. Start at the Settings home screen.
+2. Start at the Settings screen.
 3. Find and click the "Apps" element.
 4. Capture evidence.
 5. Back to home.

@@ -5,5 +5,7 @@
   "appium:appPackage": "com.android.settings",
   "appium:appActivity": ".Settings",
   "appium:noReset": true,
-  "appium:newCommandTimeout": 120
+  "appium:newCommandTimeout": 120,
+  "appium:forceAppLaunch": true,
+  "appium:udid": "D0AA002182JC0202126"
 }
