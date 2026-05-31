@@ -184,6 +184,12 @@ function getCodexFastModeInstructions() {
   ].join('\n');
 }
 
+function hasCancelledMcpToolCall(outputText) {
+  return outputText
+    .split(/\r?\n/)
+    .some((line) => line.trim() === 'user cancelled MCP tool call');
+}
+
 function withAutomationFooter(prompt, providerName) {
   if (
     providerName !== 'codex'
@@ -264,7 +270,7 @@ function runProviderCli(provider, prompt, taskName) {
   }
 
   const outputText = `${result.stdout || ''}\n${result.stderr || ''}`;
-  if (provider.name === 'codex' && outputText.includes('user cancelled MCP tool call')) {
+  if (provider.name === 'codex' && hasCancelledMcpToolCall(outputText)) {
     throw new Error(
       `${provider.displayName} reported cancelled MCP tool calls. ` +
       'For automated Appium MCP runs, keep CODEX_BYPASS_APPROVALS_AND_SANDBOX unset or set it to true.'
