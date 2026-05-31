@@ -20,3 +20,7 @@ Use Appium MCP tools to prove that the coding agent can navigate between major S
 - Prefer safe, read-only navigation.
 - If exact labels are unavailable, choose the closest safe match.
 - Stop if the next available action appears risky.
+- Keep this route minimal: do not inspect unrelated repository files or prior artifacts.
+- Use Appium MCP screenshot/page-source tools for evidence.
+- Do not use shell `adb uiautomator dump` or synthesize XML files.
+- Close the Appium session when the route is complete.

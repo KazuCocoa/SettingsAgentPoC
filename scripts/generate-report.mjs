@@ -25,15 +25,29 @@ function readLogs() {
   };
 
   if (fs.existsSync(LOGS_DIR)) {
-    const files = fs.readdirSync(LOGS_DIR);
+    const files = fs.readdirSync(LOGS_DIR).sort();
 
-    files.forEach((file) => {
-      if (file.includes('explore')) {
-        logs.explore = readFileSync(path.join(LOGS_DIR, file), 'utf-8');
-      } else if (file.includes('reachability')) {
-        logs.reachability = readFileSync(path.join(LOGS_DIR, file), 'utf-8');
+    const readFirstMatchingLog = (patterns) => {
+      const file = files.find((name) =>
+        patterns.some((pattern) => pattern.test(name))
+      );
+
+      if (!file) {
+        return null;
       }
-    });
+
+      return readFileSync(path.join(LOGS_DIR, file), 'utf-8');
+    };
+
+    logs.explore = readFirstMatchingLog([
+      /android[_-]settings.*exploration.*\.md$/,
+      /exploration.*summary.*\.md$/,
+      /settings-explore-summary.*\.md$/,
+    ]);
+    logs.reachability = readFirstMatchingLog([
+      /settings-reachability-summary.*\.md$/,
+      /reachability.*summary.*\.md$/,
+    ]);
   }
 
   return logs;

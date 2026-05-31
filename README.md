@@ -52,7 +52,8 @@ settings-agent-poc/
 1. Install Node.js.
 2. Install Android SDK and create or start an Android emulator.
 3. Confirm the emulator is visible through `adb devices`.
-4. Configure Codex or GitHub Copilot in VS Code (with MCP support for appium-mcp).
+4. Ensure `npx appium-mcp@latest` can run in your shell.
+5. Configure Codex or GitHub Copilot in VS Code (with MCP support for appium-mcp).
 
 ## Quick Start (LLM-Driven Execution via Agent CLI)
 
@@ -82,6 +83,7 @@ This will:
 - Validate your Android setup
 - Prepare exploration and reachability prompts
 - Feed prompts to the selected agent CLI automatically (`codex exec ...` or `copilot -p ...`)
+- Start `appium-mcp` automatically through MCP stdio configuration
 - Let the agent use Appium MCP tools to navigate Settings and capture evidence
 - Validate artifacts and generate a report
 
@@ -89,9 +91,10 @@ This will:
 
 1. **Environment Check** — `npm run validate-env` ensures you have Android SDK, adb, and an active emulator
 2. **Prompt Preparation** — `npm run poc` prepares prompts for the selected agent
-3. **LLM Execution** — `npm run poc` executes prompts via Codex CLI or Copilot CLI in non-interactive mode
-4. **Evidence Collection** — The agent captures screenshots, page source, and logs navigation
-5. **Validation & Reporting** — `npm run poc` validates artifacts and generates a summary report
+3. **MCP Startup** — Codex CLI receives an `appium-mcp` stdio server config using `scripts/appium-mcp-with-log.sh`; VS Code uses `.vscode/mcp.json`
+4. **LLM Execution** — `npm run poc` executes prompts via Codex CLI or Copilot CLI in non-interactive mode
+5. **Evidence Collection** — The agent captures screenshots, page source, and logs navigation
+6. **Validation & Reporting** — `npm run poc` validates artifacts and generates a summary report
 
 ## Execution Modes
 
@@ -129,9 +132,28 @@ npm run report             # Generate report from artifacts
 ### Agent Environment Variables
 
 - `AGENT_PROVIDER` — `codex` (default) or `copilot`
-- `AGENT_MODEL` — model passed to the selected CLI
-- `AGENT_CLI_TIMEOUT_MS` — CLI timeout in milliseconds
+- `AGENT_MODEL` — optional model passed to the selected CLI; leave unset to use the CLI default
+- `AGENT_CLI_TIMEOUT_MS` — CLI timeout in milliseconds; Codex uses at least 600000ms unless `CODEX_CLI_TIMEOUT_MS` is set
+- `CODEX_CLI_TIMEOUT_MS` — optional Codex-specific timeout override in milliseconds
+- `CODEX_FAST_MODE=false` — opt out of terse Codex automation instructions; default is enabled for faster Appium runs
 - `AGENT_MANUAL_FALLBACK=true` — save prompts instead of failing when the selected CLI is unavailable
+- `CODEX_BYPASS_APPROVALS_AND_SANDBOX=false` — opt out of Codex's no-prompt automation mode; default is enabled so MCP tool calls can run non-interactively
+- `APPIUM_MCP_ENABLED=false` — disable automatic Appium MCP config injection for Codex
+- `APPIUM_MCP_COMMAND` — command used to start Appium MCP; default `bash`
+- `APPIUM_MCP_ARGS` — space-separated args for Appium MCP; default `scripts/appium-mcp-with-log.sh`
+- `APPIUM_MCP_LOG_FILE` — Appium MCP stderr log path; default `artifacts/logs/appium-mcp.log`
+
+### Appium MCP Logs
+
+Codex logs MCP tool calls in files like `artifacts/logs/settings-explore-codex-output.txt`. The Appium MCP server's own stderr is captured separately:
+
+```bash
+tail -f artifacts/logs/appium-mcp.log
+```
+
+The wrapper keeps stdout reserved for the MCP protocol, so only stderr is written to the log file.
+
+Report generation uses concise `*.md` run summaries from `artifacts/logs/`. Raw `*-codex-output.txt` files are kept for debugging and are intentionally not embedded in `artifacts/run-report.md`.
 
 ## Recommended first tasks
 

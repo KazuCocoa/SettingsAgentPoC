@@ -2,10 +2,11 @@
   "servers": {
     "appium-mcp": {
       "type": "stdio",
-      "command": "node",
-      "args": ["/Users/kazu/github/appium-mcp/dist/index.js"],
+      "command": "bash",
+      "args": ["${workspaceFolder}/scripts/appium-mcp-with-log.sh"],
       "env": {
         "ANDROID_HOME": "${env:ANDROID_HOME}",
+        "APPIUM_MCP_LOG_FILE": "${workspaceFolder}/artifacts/logs/appium-mcp.log",
         "NO_UI": "true"
       }
     }
