@@ -33,3 +33,4 @@ artifacts/logs/*
 !artifacts/page-source/.gitkeep
 !artifacts/logs/.gitkeep
 artifacts/run-report.md
+evidence/

@@ -2,7 +2,7 @@
   "servers": {
     "appium-mcp": {
       "type": "stdio",
-      "command": "sh",
+      "command": "bash",
       "args": ["${workspaceFolder}/scripts/appium-mcp-with-log.sh"],
       "env": {
         "ANDROID_HOME": "${env:ANDROID_HOME}",

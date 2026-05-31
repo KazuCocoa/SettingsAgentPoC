@@ -135,10 +135,11 @@ npm run report             # Generate report from artifacts
 - `AGENT_MODEL` — optional model passed to the selected CLI; leave unset to use the CLI default
 - `AGENT_CLI_TIMEOUT_MS` — CLI timeout in milliseconds; Codex uses at least 600000ms unless `CODEX_CLI_TIMEOUT_MS` is set
 - `CODEX_CLI_TIMEOUT_MS` — optional Codex-specific timeout override in milliseconds
+- `CODEX_FAST_MODE=false` — opt out of terse Codex automation instructions; default is enabled for faster Appium runs
 - `AGENT_MANUAL_FALLBACK=true` — save prompts instead of failing when the selected CLI is unavailable
 - `CODEX_BYPASS_APPROVALS_AND_SANDBOX=false` — opt out of Codex's no-prompt automation mode; default is enabled so MCP tool calls can run non-interactively
 - `APPIUM_MCP_ENABLED=false` — disable automatic Appium MCP config injection for Codex
-- `APPIUM_MCP_COMMAND` — command used to start Appium MCP; default `sh`
+- `APPIUM_MCP_COMMAND` — command used to start Appium MCP; default `bash`
 - `APPIUM_MCP_ARGS` — space-separated args for Appium MCP; default `scripts/appium-mcp-with-log.sh`
 - `APPIUM_MCP_LOG_FILE` — Appium MCP stderr log path; default `artifacts/logs/appium-mcp.log`
 
@@ -151,6 +152,8 @@ tail -f artifacts/logs/appium-mcp.log
 ```
 
 The wrapper keeps stdout reserved for the MCP protocol, so only stderr is written to the log file.
+
+Report generation uses concise `*.md` run summaries from `artifacts/logs/`. Raw `*-codex-output.txt` files are kept for debugging and are intentionally not embedded in `artifacts/run-report.md`.
 
 ## Recommended first tasks
 

@@ -13,7 +13,7 @@ import { spawnSync } from 'node:child_process';
 const executedActions = [];
 
 function getAppiumMcpCommandArgs() {
-  const command = process.env.APPIUM_MCP_COMMAND || 'sh';
+  const command = process.env.APPIUM_MCP_COMMAND || 'bash';
   const args = process.env.APPIUM_MCP_ARGS
     ? process.env.APPIUM_MCP_ARGS.split(' ').filter(Boolean)
     : ['scripts/appium-mcp-with-log.sh'];
@@ -52,6 +52,14 @@ function addCodexAppiumMcpArgs(args) {
 
 function shouldBypassCodexApprovalsAndSandbox() {
   return process.env.CODEX_BYPASS_APPROVALS_AND_SANDBOX !== 'false';
+}
+
+function useCodexFastMode() {
+  return process.env.CODEX_FAST_MODE !== 'false';
+}
+
+function isoNow() {
+  return new Date().toISOString();
 }
 
 const PROVIDERS = {
@@ -157,6 +165,25 @@ function getManualOnly() {
     || process.env.COPILOT_MANUAL_ONLY === 'true';
 }
 
+function getCodexFastModeInstructions() {
+  if (!useCodexFastMode()) {
+    return '';
+  }
+
+  return [
+    '## Codex fast mode',
+    '',
+    '- Fast mode is enabled. Optimize for the shortest correct Appium run, not broad repository analysis.',
+    '- Do not read unrelated scripts, docs, prior logs, git status, or artifact history unless a requested file is missing.',
+    '- Read only the capabilities file and the current UI state needed for this task.',
+    '- Avoid `generate_locators` unless simple find/tap by visible text fails twice.',
+    '- Avoid shell-based `adb uiautomator dump`; use Appium MCP page-source output for XML evidence.',
+    '- Do not synthesize or hand-write XML evidence. If real XML cannot be captured, stop with a clear blocker.',
+    '- Avoid extra validation commands after artifacts are written; one concise run summary is enough.',
+    '',
+  ].join('\n');
+}
+
 function withAutomationFooter(prompt, providerName) {
   if (
     providerName !== 'codex'
@@ -170,6 +197,7 @@ function withAutomationFooter(prompt, providerName) {
 
 ## Automation completion requirements
 
+${getCodexFastModeInstructions()}
 - Keep this run bounded. Do not continue exploring after the requested targets are complete.
 - Before finishing, delete/close the Appium session if one was created.
 - Once the requested screenshots, page source files, and run summary are written, stop tool use.
@@ -184,6 +212,7 @@ function runProviderCli(provider, prompt, taskName) {
   const outputFile = `artifacts/logs/${taskName}-${provider.outputSuffix}-output.txt`;
   const executablePrompt = withAutomationFooter(prompt, provider.name);
   const args = provider.buildArgs({ model, prompt: executablePrompt });
+  const startedAt = new Date();
 
   const result = spawnSync(provider.binary, args, {
     cwd: process.cwd(),
@@ -193,6 +222,8 @@ function runProviderCli(provider, prompt, taskName) {
     timeout: timeoutMs,
     maxBuffer: 10 * 1024 * 1024,
   });
+  const endedAt = new Date();
+  const durationMs = endedAt.getTime() - startedAt.getTime();
 
   const outputDir = path.dirname(outputFile);
   if (!fs.existsSync(outputDir)) {
@@ -204,6 +235,10 @@ function runProviderCli(provider, prompt, taskName) {
     `# Provider: ${provider.displayName}`,
     `# Model: ${model}`,
     `# Exit code: ${result.status ?? 'unknown'}`,
+    `# Started at: ${startedAt.toISOString()}`,
+    `# Ended at: ${endedAt.toISOString()}`,
+    `# Duration ms: ${durationMs}`,
+    `# Timeout ms: ${timeoutMs}`,
     '',
     '## STDOUT',
     result.stdout || '',
@@ -248,6 +283,7 @@ async function invokeLLM(prompt, taskName) {
 
   console.log(`[Executor] Invoking LLM for task: ${taskName}`);
   console.log(`[Executor] Preparing prompt for ${provider.displayName}...`);
+  console.log(`[Executor] ${provider.displayName} start timestamp: ${isoNow()}`);
 
   // Create a temporary file with the prompt
   const promptFile = `artifacts/logs/${taskName}-prompt.txt`;
@@ -293,6 +329,7 @@ async function invokeLLM(prompt, taskName) {
 
   console.log(`[Executor] Running ${provider.displayName} in non-interactive mode...`);
   const cliResult = runProviderCli(provider, executablePrompt, taskName);
+  console.log(`[Executor] ${provider.displayName} end timestamp: ${isoNow()}`);
 
   return {
     promptFile,

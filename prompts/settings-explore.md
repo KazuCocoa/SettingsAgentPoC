@@ -30,6 +30,11 @@ Prefer these targets:
 - Do not leave the Settings app intentionally.
 - Use the live UI hierarchy rather than assuming exact labels.
 - If a target label is different, choose the closest safe equivalent.
+- Keep exploration bounded to two safe target pages.
+- Do not inspect unrelated repository files or prior artifacts.
+- Use Appium MCP screenshot/page-source tools for evidence.
+- Do not use shell `adb uiautomator dump` or synthesize XML files.
+- Close the Appium session when exploration is complete.
 
 ## Expected outputs
 
