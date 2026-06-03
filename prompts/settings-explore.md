@@ -2,6 +2,13 @@
 
 Use Appium MCP tools to perform a safe exploratory run in the default Android Settings app.
 
+## Required Appium MCP tool names
+
+- First call `appium-mcp_select_device`.
+- Then call `appium-mcp_appium_session_management` with `action=create`, `platform=android`, and `capabilities` as a JSON string from `appium/capabilities.android.json`.
+- Do not call `appium-mcp_start_appium`; that tool does not exist.
+- Use `appium-mcp_appium_screenshot` and `appium-mcp_appium_get_page_source` for evidence.
+
 ## Instructions
 
 1. Start an Appium session using `appium/capabilities.android.json`.

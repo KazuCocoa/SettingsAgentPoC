@@ -9,6 +9,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { execSync } from 'node:child_process';
+import './load-env.mjs';
 
 const ANDROID_HOME = process.env.ANDROID_HOME;
 

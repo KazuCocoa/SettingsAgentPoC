@@ -2,6 +2,13 @@
 
 Use Appium MCP tools to prove that the coding agent can navigate between major Settings pages and preserve evidence.
 
+## Required Appium MCP tool names
+
+- First call `appium-mcp_select_device`.
+- Then call `appium-mcp_appium_session_management` with `action=create`, `platform=android`, and `capabilities` as a JSON string from `appium/capabilities.android.json`.
+- Do not call `appium-mcp_start_appium`; that tool does not exist.
+- Use `appium-mcp_appium_screenshot` and `appium-mcp_appium_get_page_source` for evidence.
+
 ## Target sequence
 
 1. Start Appium session using `appium/capabilities.android.json`.

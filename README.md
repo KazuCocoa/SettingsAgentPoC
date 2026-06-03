@@ -73,16 +73,26 @@ npm run validate-env
 npm run poc
 ```
 
-To use Copilot instead:
+The Node scripts load `.env` automatically; shell environment variables still override `.env` values.
+
+To use Copilot or Kilo instead:
 
 ```bash
 AGENT_PROVIDER=copilot npm run poc
+AGENT_PROVIDER=kilo npm run poc
+```
+
+For Kilo with a local Ollama model, make sure Ollama is running and the model is pulled:
+
+```bash
+ollama serve
+ollama pull qwen3:4b
 ```
 
 This will:
 - Validate your Android setup
 - Prepare exploration and reachability prompts
-- Feed prompts to the selected agent CLI automatically (`codex exec ...` or `copilot -p ...`)
+- Feed prompts to the selected agent CLI automatically (`codex exec ...`, `copilot -p ...`, or `kilo run -m ollama/qwen3:4b ...`)
 - Start `appium-mcp` automatically through MCP stdio configuration
 - Let the agent use Appium MCP tools to navigate Settings and capture evidence
 - Validate artifacts and generate a report
@@ -104,6 +114,9 @@ npm run poc
 
 # Copilot CLI execution + finalize
 AGENT_PROVIDER=copilot npm run poc
+
+# Kilo CLI execution + finalize; defaults to local Ollama qwen3:4b
+AGENT_PROVIDER=kilo npm run poc
 
 # Manual mode: only prepare prompts for agent chat
 npm run poc:prepare
@@ -131,10 +144,14 @@ npm run report             # Generate report from artifacts
 
 ### Agent Environment Variables
 
-- `AGENT_PROVIDER` — `codex` (default) or `copilot`
+- `AGENT_PROVIDER` — `codex` (default), `copilot`, or `kilo`
 - `AGENT_MODEL` — optional model passed to the selected CLI; leave unset to use the CLI default
 - `AGENT_CLI_TIMEOUT_MS` — CLI timeout in milliseconds; Codex uses at least 600000ms unless `CODEX_CLI_TIMEOUT_MS` is set
 - `CODEX_CLI_TIMEOUT_MS` — optional Codex-specific timeout override in milliseconds
+- `KILO_MODEL` — optional Kilo-specific model override; default `ollama/qwen3:4b`
+- `KILO_CLI_TIMEOUT_MS` — optional Kilo-specific timeout override in milliseconds
+- `KILO_CLI_BINARY` — optional Kilo executable override; default `kilo`
+- `KILO_CLI_ARGS` — optional Kilo arguments before prompt text; default `run`
 - `CODEX_FAST_MODE=false` — opt out of terse Codex automation instructions; default is enabled for faster Appium runs
 - `AGENT_MANUAL_FALLBACK=true` — save prompts instead of failing when the selected CLI is unavailable
 - `CODEX_BYPASS_APPROVALS_AND_SANDBOX=false` — opt out of Codex's no-prompt automation mode; default is enabled so MCP tool calls can run non-interactively

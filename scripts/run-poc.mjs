@@ -8,6 +8,7 @@
 
 import { execSync } from 'node:child_process';
 import process from 'node:process';
+import './load-env.mjs';
 
 const args = process.argv.slice(2);
 const skipValidation = args.includes('--skip-validation');
