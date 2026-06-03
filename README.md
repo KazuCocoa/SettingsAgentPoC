@@ -17,7 +17,7 @@ This PoC intentionally focuses on **traceability** and **safe exploration** rath
 
 ## Suggested stack
 
-- Codex or VS Code with GitHub Copilot Agent Mode
+- Direct Appium MCP runner with local Ollama, or Codex / VS Code with GitHub Copilot Agent Mode
 - MCP configuration pointing to `appium-mcp`
 - Local Appium server
 - Android SDK + emulator
@@ -55,9 +55,9 @@ settings-agent-poc/
 4. Ensure `npx appium-mcp@latest` can run in your shell.
 5. Configure Codex or GitHub Copilot in VS Code (with MCP support for appium-mcp).
 
-## Quick Start (LLM-Driven Execution via Agent CLI)
+## Quick Start (LLM-Driven Execution)
 
-The PoC is designed to be driven by Codex or GitHub Copilot using Appium MCP tools. The default provider is Codex.
+The PoC can run directly against Appium MCP and use a local Ollama model only for bounded UI choices. Codex, Copilot, and Kilo remain available as alternate providers.
 
 ```bash
 # 1. Install dependencies
@@ -75,47 +75,61 @@ npm run poc
 
 The Node scripts load `.env` automatically; shell environment variables still override `.env` values.
 
-To use Copilot or Kilo instead:
+To use the direct local runner, set:
 
 ```bash
+AGENT_PROVIDER=direct
+DIRECT_MODEL=qwen3.5:4b
+```
+
+To use Codex, Copilot, or Kilo instead:
+
+```bash
+AGENT_PROVIDER=codex npm run poc
 AGENT_PROVIDER=copilot npm run poc
 AGENT_PROVIDER=kilo npm run poc
 ```
 
-For Kilo with a local Ollama model, make sure Ollama is running and the model is pulled:
+For direct or Kilo with a local Ollama model, make sure Ollama is running and the model is pulled:
 
 ```bash
 ollama serve
-ollama pull qwen3:4b
+ollama pull qwen3.5:4b
 ```
 
 This will:
 - Validate your Android setup
 - Prepare exploration and reachability prompts
-- Feed prompts to the selected agent CLI automatically (`codex exec ...`, `copilot -p ...`, or `kilo run -m ollama/qwen3:4b ...`)
+- Feed prompts to the selected execution path automatically (`direct`, `codex exec ...`, `copilot -p ...`, or `kilo run -m ollama/qwen3.5:4b ...`)
 - Start `appium-mcp` automatically through MCP stdio configuration
-- Let the agent use Appium MCP tools to navigate Settings and capture evidence
+- Use Appium MCP tools to navigate Settings and capture evidence
 - Validate artifacts and generate a report
 
 ### How It Works
 
 1. **Environment Check** — `npm run validate-env` ensures you have Android SDK, adb, and an active emulator
-2. **Prompt Preparation** — `npm run poc` prepares prompts for the selected agent
-3. **MCP Startup** — Codex CLI receives an `appium-mcp` stdio server config using `scripts/appium-mcp-with-log.sh`; VS Code uses `.vscode/mcp.json`
-4. **LLM Execution** — `npm run poc` executes prompts via Codex CLI or Copilot CLI in non-interactive mode
-5. **Evidence Collection** — The agent captures screenshots, page source, and logs navigation
+2. **Prompt Preparation** — `npm run poc` prepares prompts for the selected execution path
+3. **MCP Startup** — Direct and Codex runs start `appium-mcp` with `scripts/appium-mcp-with-log.sh`; VS Code uses `.vscode/mcp.json`
+4. **Execution** — `npm run poc` executes via the direct runner or the selected CLI in non-interactive mode
+5. **Evidence Collection** — The runner captures screenshots, page source, and logs navigation
 6. **Validation & Reporting** — `npm run poc` validates artifacts and generates a summary report
 
 ## Execution Modes
 
 ```bash
-# Default: end-to-end (Codex CLI execution + finalize)
+# Default from .env: end-to-end direct Appium MCP runner + finalize
 npm run poc
+
+# Direct Appium MCP runner + local Ollama choices
+AGENT_PROVIDER=direct npm run poc
+
+# Codex CLI execution + finalize
+AGENT_PROVIDER=codex npm run poc
 
 # Copilot CLI execution + finalize
 AGENT_PROVIDER=copilot npm run poc
 
-# Kilo CLI execution + finalize; defaults to local Ollama qwen3:4b
+# Kilo CLI execution + finalize; defaults to local Ollama qwen3.5:4b
 AGENT_PROVIDER=kilo npm run poc
 
 # Manual mode: only prepare prompts for agent chat
@@ -144,11 +158,14 @@ npm run report             # Generate report from artifacts
 
 ### Agent Environment Variables
 
-- `AGENT_PROVIDER` — `codex` (default), `copilot`, or `kilo`
+- `AGENT_PROVIDER` — `direct`, `codex`, `copilot`, or `kilo`
 - `AGENT_MODEL` — optional model passed to the selected CLI; leave unset to use the CLI default
 - `AGENT_CLI_TIMEOUT_MS` — CLI timeout in milliseconds; Codex uses at least 600000ms unless `CODEX_CLI_TIMEOUT_MS` is set
+- `DIRECT_MODEL` — optional direct-runner Ollama model override; default `qwen3.5:4b`
+- `DIRECT_LLM_TIMEOUT_MS` — optional timeout for each direct-runner Ollama decision; default `15000`
+- `OLLAMA_BASE_URL` — optional Ollama base URL; default `http://127.0.0.1:11434`
 - `CODEX_CLI_TIMEOUT_MS` — optional Codex-specific timeout override in milliseconds
-- `KILO_MODEL` — optional Kilo-specific model override; default `ollama/qwen3:4b`
+- `KILO_MODEL` — optional Kilo-specific model override; default `ollama/qwen3.5:4b`
 - `KILO_CLI_TIMEOUT_MS` — optional Kilo-specific timeout override in milliseconds
 - `KILO_CLI_BINARY` — optional Kilo executable override; default `kilo`
 - `KILO_CLI_ARGS` — optional Kilo arguments before prompt text; default `run`

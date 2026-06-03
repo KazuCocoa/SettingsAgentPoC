@@ -95,8 +95,11 @@ STEP 6: What to Expect
 
 async function main() {
   log('INFO', '=== Settings Agent PoC Orchestrator (LLM-Driven) ===');
-  log('INFO', `Mode: ${finalize ? 'finalize (post-agent validation/report)' : prepareOnly ? 'prepare-only (manual agent chat)' : `auto (${agentProvider} CLI + finalize)`}`);
-  log('INFO', `Execution model: ${agentProvider} CLI + Appium MCP tools`);
+  const executionLabel = agentProvider === 'direct'
+    ? 'direct Appium MCP runner'
+    : `${agentProvider} CLI`;
+  log('INFO', `Mode: ${finalize ? 'finalize (post-agent validation/report)' : prepareOnly ? 'prepare-only (manual agent chat)' : `auto (${executionLabel} + finalize)`}`);
+  log('INFO', `Execution model: ${executionLabel} + Appium MCP tools`);
 
   if (prepareOnly) {
     process.env.AGENT_MANUAL_ONLY = 'true';

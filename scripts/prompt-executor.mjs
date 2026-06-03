@@ -10,6 +10,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import './load-env.mjs';
+import { runDirectTask } from './direct-appium-agent.mjs';
 
 const executedActions = [];
 
@@ -192,6 +193,18 @@ const PROVIDERS = {
       return args;
     },
   },
+  direct: {
+    binary: 'direct-appium-agent',
+    displayName: 'Direct Appium MCP + Ollama',
+    status: 'executed-via-direct-appium-mcp',
+    awaitingStatus: 'awaiting-direct-appium-mcp',
+    outputSuffix: 'direct',
+    manualName: 'Direct Appium MCP',
+    manualProduct: 'Direct Appium MCP runner',
+    buildArgs() {
+      return [];
+    },
+  },
 };
 
 function getProvider() {
@@ -213,6 +226,14 @@ function getProviderModel(providerName) {
 
   if (providerName === 'kilo') {
     return process.env.KILO_MODEL || process.env.AGENT_MODEL || process.env.LLM_MODEL || 'ollama/qwen3.5:4b';
+  }
+
+  if (providerName === 'direct') {
+    return process.env.DIRECT_MODEL
+      || process.env.OLLAMA_MODEL
+      || process.env.AGENT_MODEL
+      || process.env.LLM_MODEL
+      || 'qwen3.5:4b';
   }
 
   return process.env.COPILOT_MODEL || process.env.AGENT_MODEL || process.env.LLM_MODEL || 'gpt-5.3-codex';
@@ -376,7 +397,7 @@ ${getCodexFastModeInstructions()}
 `;
 }
 
-function runProviderCli(provider, prompt, taskName) {
+async function runProviderCli(provider, prompt, taskName) {
   const model = getProviderModel(provider.name);
   const timeoutMs = getProviderTimeoutMs(provider.name);
   const outputFile = `artifacts/logs/${taskName}-${provider.outputSuffix}-output.txt`;
@@ -391,6 +412,10 @@ function runProviderCli(provider, prompt, taskName) {
   }
 
   fs.writeFileSync(cliPromptFile, cliPrompt, 'utf-8');
+
+  if (provider.name === 'direct') {
+    return runDirectTask(taskName);
+  }
 
   const args = provider.buildArgs({ model, prompt: cliPrompt, promptFile: cliPromptFile });
   const startedAt = new Date();
@@ -497,7 +522,9 @@ async function invokeLLM(prompt, taskName) {
   }
 
   const fallbackToManual = getManualFallback();
-  const probe = spawnSync(provider.binary, ['--version'], { encoding: 'utf-8', stdio: 'pipe' });
+  const probe = provider.name === 'direct'
+    ? { status: 0 }
+    : spawnSync(provider.binary, ['--version'], { encoding: 'utf-8', stdio: 'pipe' });
   if (probe.error || probe.status !== 0) {
     if (!fallbackToManual) {
       const reason = probe.error ? probe.error.message : `exit code ${probe.status}`;
@@ -517,7 +544,7 @@ async function invokeLLM(prompt, taskName) {
   }
 
   console.log(`[Executor] Running ${provider.displayName} in non-interactive mode...`);
-  const cliResult = runProviderCli(provider, executablePrompt, taskName);
+  const cliResult = await runProviderCli(provider, executablePrompt, taskName);
   console.log(`[Executor] ${provider.displayName} end timestamp: ${isoNow()}`);
 
   return {
