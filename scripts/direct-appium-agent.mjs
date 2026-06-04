@@ -11,6 +11,18 @@ const TASK_SUMMARIES = {
   'settings-reachability': 'settings-reachability-summary.md',
 };
 
+const DIRECT_TOOL_NAMES = [
+  'select_device',
+  'appium_session_management',
+  'appium_screenshot',
+  'appium_get_page_source',
+  'appium_find_element',
+  'appium_gesture',
+  'appium_get_text',
+  'appium_get_element_attribute',
+  'appium_get_window_size',
+];
+
 function ensureDir(dir) {
   fs.mkdirSync(dir, { recursive: true });
 }
@@ -162,15 +174,27 @@ async function withMcpClient(fn) {
 async function callTool(client, name, args = {}, transcript) {
   const startedAt = isoNow();
   transcript.push({ type: 'tool_call', name, args, startedAt });
-  const result = await client.callTool({ name, arguments: args });
-  const text = textFromToolResult(result);
-  transcript.push({
-    type: 'tool_result',
-    name,
-    isError: Boolean(result.isError),
-    text: truncate(text, 5000),
-    endedAt: isoNow(),
-  });
+  let result;
+  let text;
+
+  try {
+    result = await client.callTool({ name, arguments: args });
+    text = textFromToolResult(result);
+  } catch (err) {
+    text = err instanceof Error ? err.message : String(err);
+    result = {
+      isError: true,
+      content: [{ type: 'text', text }],
+    };
+  } finally {
+    transcript.push({
+      type: 'tool_result',
+      name,
+      isError: Boolean(result?.isError),
+      text: truncate(text || '', 5000),
+      endedAt: isoNow(),
+    });
+  }
 
   return { result, text };
 }
@@ -193,6 +217,8 @@ function buildSystemPrompt(toolNames) {
     'You must choose and call tools yourself. Do not ask for deterministic execution.',
     'Use the exact tool names provided by the tool list. If task text mentions appium-mcp_ prefixes, strip that prefix when calling tools.',
     'For Android local sessions, start by selecting an Android device, then create an Android Appium session using capabilities from the prompt.',
+    'For appium_session_management, action must be exactly one of: create, attach, detach, delete, list, select. Use action=create to start and action=delete to close.',
+    'For select_device on Android, call it with {"platform":"android"}.',
     'Use screenshots and page source as evidence. Prefer safe read-only navigation.',
     'Before finishing, close/delete the Appium session if one was created.',
     'When the task is complete, respond with a concise summary that starts with TASK_COMPLETE.',
@@ -202,6 +228,7 @@ function buildSystemPrompt(toolNames) {
 }
 
 function buildTaskPrompt(prompt) {
+  const capabilities = readCapabilitiesJson();
   return [
     prompt,
     '',
@@ -212,7 +239,9 @@ function buildTaskPrompt(prompt) {
     '- If the prompt shows appium-mcp_appium_get_page_source, call appium_get_page_source.',
     '- If the prompt shows appium-mcp_appium_session_management, call appium_session_management.',
     '- If the prompt shows appium-mcp_select_device, call select_device.',
-    `- Android capabilities JSON to pass as the capabilities string: ${readCapabilitiesJson()}`,
+    '- Required startup call 1: select_device with {"platform":"android"}.',
+    `- Required startup call 2: appium_session_management with {"action":"create","platform":"android","capabilities":${JSON.stringify(capabilities)}}.`,
+    '- Do not call appium_session_management with only {"action":"create"}.',
   ].join('\n');
 }
 
@@ -224,19 +253,25 @@ async function runDirectTask(taskName, prompt = '') {
   const summaryPath = path.join('artifacts', 'logs', TASK_SUMMARIES[taskName] || `${taskName}-summary.md`);
   const pageSourceSequence = { value: 1 };
   let finalText = '';
+  let runError = null;
 
   ensureDir(path.join('artifacts', 'logs'));
   ensureDir(path.join('artifacts', 'page-source'));
   ensureDir(path.join('artifacts', 'screenshots'));
 
-  await withMcpClient(async (client) => {
+  try {
+    await withMcpClient(async (client) => {
     const listed = await client.listTools();
-    const toolNames = new Set(listed.tools.map((tool) => tool.name));
-    const tools = listed.tools.map(toChatTool);
+    const availableToolNames = new Set(listed.tools.map((tool) => tool.name));
+    const selectedTools = listed.tools.filter((tool) => DIRECT_TOOL_NAMES.includes(tool.name));
+    const toolNames = new Set(selectedTools.map((tool) => tool.name));
+    const tools = selectedTools.map(toChatTool);
     transcript.push({
       type: 'mcp_tools',
-      count: listed.tools.length,
+      count: selectedTools.length,
       names: Array.from(toolNames),
+      availableCount: listed.tools.length,
+      availableNames: Array.from(availableToolNames),
     });
 
     const messages = [
@@ -292,12 +327,32 @@ async function runDirectTask(taskName, prompt = '') {
           role: 'tool',
           tool_call_id: toolCall.id,
           content: result.isError
-            ? `ERROR from ${toolName}: ${truncate(text)}`
-            : truncate(text),
+            ? `ERROR from ${toolName}: ${truncate(text, 3000)}`
+            : truncate(text, 3000),
         });
+
+        if (result.isError && toolName === 'appium_session_management') {
+          messages.push({
+            role: 'user',
+            content: [
+              'Repair the appium_session_management call.',
+              'For starting Android Settings, call appium_session_management with exactly:',
+              '{"action":"create","platform":"android","capabilities":"<the Android capabilities JSON string from the prompt>"}',
+              'Do not omit platform or capabilities.',
+            ].join(' '),
+          });
+        }
       }
     }
-  });
+    });
+  } catch (err) {
+    runError = err;
+    transcript.push({
+      type: 'run_error',
+      message: err instanceof Error ? err.message : String(err),
+      endedAt: isoNow(),
+    });
+  }
 
   const endedAt = isoNow();
   const completed = finalText.includes('TASK_COMPLETE');
@@ -306,7 +361,9 @@ async function runDirectTask(taskName, prompt = '') {
     : [
       'TASK_INCOMPLETE',
       '',
-      'The local model did not emit TASK_COMPLETE within the configured step budget.',
+      runError
+        ? `The local model run failed: ${runError instanceof Error ? runError.message : String(runError)}`
+        : 'The local model did not emit TASK_COMPLETE within the configured step budget.',
       `Model: ${model}`,
     ].join('\n');
 
@@ -329,6 +386,10 @@ async function runDirectTask(taskName, prompt = '') {
     ].join('\n'),
     'utf-8'
   );
+
+  if (runError) {
+    throw new Error(`Local model run failed for ${taskName}. See ${outputFile}: ${runError instanceof Error ? runError.message : String(runError)}`);
+  }
 
   if (!completed) {
     throw new Error(`Local model did not complete ${taskName}. See ${outputFile}`);

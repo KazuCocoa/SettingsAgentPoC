@@ -23,10 +23,6 @@ export NO_UI="${NO_UI:-true}"
 
 if [[ -n "${APPIUM_MCP_BIN:-}" ]]; then
   COMMAND=("$APPIUM_MCP_BIN")
-elif [[ -x "$ROOT_DIR/.vscode/bin/appium-mcp" ]]; then
-  COMMAND=("$ROOT_DIR/.vscode/bin/appium-mcp")
-elif [[ -f "$ROOT_DIR/../appium-mcp/dist/index.js" ]]; then
-  COMMAND=("node" "$ROOT_DIR/../appium-mcp/dist/index.js")
 else
   COMMAND=("npx" "--yes" "appium-mcp@latest")
 fi

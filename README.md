@@ -158,7 +158,7 @@ npm run report             # Generate report from artifacts
 - `AGENT_MODEL` — optional model passed to the selected CLI; leave unset to use the CLI default
 - `AGENT_CLI_TIMEOUT_MS` — CLI timeout in milliseconds; Codex uses at least 600000ms unless `CODEX_CLI_TIMEOUT_MS` is set
 - `DIRECT_MODEL` — optional direct-runner Ollama model override; default `qwen3.5:2b`
-- `DIRECT_LLM_TIMEOUT_MS` — optional timeout for each direct-runner Ollama response; default `120000`
+- `DIRECT_LLM_TIMEOUT_MS` — optional timeout for each direct-runner Ollama response; default `60000`
 - `DIRECT_MAX_STEPS` — optional max local-model tool loop steps; default `30`
 - `OLLAMA_BASE_URL` — optional Ollama base URL; default `http://127.0.0.1:11434`
 - `CODEX_CLI_TIMEOUT_MS` — optional Codex-specific timeout override in milliseconds
