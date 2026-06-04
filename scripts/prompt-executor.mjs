@@ -426,11 +426,6 @@ async function executeTask(promptFile, taskName) {
     process.exit(1);
   }
 
-  const prompt = fs.readFileSync(promptFile, 'utf-8');
-
-  // Invoke LLM
-  const llmResult = await invokeLLM(prompt, taskName);
-
   console.log(`\n[Executor] LLM Invocation Result:`);
   console.log(llmResult);
 

@@ -111,12 +111,6 @@ This will:
 3. **MCP Startup** — Direct and Codex runs start `appium-mcp` with `scripts/appium-mcp-with-log.sh`; VS Code uses `.vscode/mcp.json`
 4. **Execution** — `npm run poc` executes via the direct local-model MCP loop or the selected CLI in non-interactive mode
 5. **Evidence Collection** — The runner captures screenshots, page source, and logs navigation
-6. **Validation & Reporting** — `npm run poc` validates artifacts and generates a summary report
-
-## Execution Modes
-
-```bash
-# Default from .env: end-to-end direct Appium MCP runner + finalize
 npm run poc
 
 # Direct local model chooses Appium MCP tools

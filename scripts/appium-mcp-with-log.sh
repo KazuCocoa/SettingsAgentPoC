@@ -8,7 +8,6 @@ RUN_ID="${APPIUM_MCP_RUN_ID:-$(date -u '+%Y%m%dT%H%M%SZ')-$$}"
 
 if [[ -d "$HOME/.nvm/versions/node" ]]; then
   for NODE_BIN_DIR in "$HOME"/.nvm/versions/node/*/bin; do
-    [[ -d "$NODE_BIN_DIR" ]] && PATH="$NODE_BIN_DIR:$PATH"
   done
 fi
 
@@ -26,15 +25,6 @@ if [[ -n "${APPIUM_MCP_BIN:-}" ]]; then
 else
   COMMAND=("npx" "--yes" "appium-mcp@latest")
 fi
-
-mkdir -p "$LOG_DIR"
-
-{
-  printf '\n[%s] [%s] Starting appium-mcp\n' "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" "$RUN_ID"
-  printf '[%s] [%s] Command:' "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" "$RUN_ID"
-  printf ' %q' "${COMMAND[@]}"
-  printf '\n'
-} >> "$LOG_FILE"
 
 STDERR_PIPE="${TMPDIR:-/tmp}/appium-mcp-stderr-$RUN_ID.pipe"
 mkfifo "$STDERR_PIPE"
