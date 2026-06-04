@@ -3,12 +3,14 @@
 /**
  * Prompt Executor for Settings Agent PoC
  * Reads a prompt and invokes the LLM to execute it with available tools
- * Supports Codex CLI or Copilot CLI
+ * Supports direct local-model MCP, Codex CLI, or Copilot CLI
  */
 
 import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
+import './load-env.mjs';
+import { runDirectTask } from './direct-appium-agent.mjs';
 
 const executedActions = [];
 
@@ -117,10 +119,22 @@ const PROVIDERS = {
       ];
     },
   },
+  direct: {
+    binary: 'direct-appium-agent',
+    displayName: 'Direct local model + Appium MCP',
+    status: 'executed-via-direct-appium-mcp',
+    awaitingStatus: 'awaiting-direct-appium-mcp',
+    outputSuffix: 'direct',
+    manualName: 'Direct local model',
+    manualProduct: 'Direct local-model MCP runner',
+    buildArgs() {
+      return [];
+    },
+  },
 };
 
 function getProvider() {
-  const providerName = (process.env.AGENT_PROVIDER || process.env.LLM_PROVIDER || 'codex').toLowerCase();
+  const providerName = (process.env.AGENT_PROVIDER || process.env.LLM_PROVIDER || 'direct').toLowerCase();
   const provider = PROVIDERS[providerName];
 
   if (!provider) {
@@ -133,7 +147,15 @@ function getProvider() {
 
 function getProviderModel(providerName) {
   if (providerName === 'codex') {
-    return process.env.CODEX_MODEL || process.env.AGENT_MODEL || process.env.LLM_MODEL;
+    return process.env.CODEX_MODEL || process.env.AGENT_MODEL || process.env.LLM_MODEL || 'gpt-5.5';
+  }
+
+  if (providerName === 'direct') {
+    return process.env.DIRECT_MODEL
+      || process.env.OLLAMA_MODEL
+      || process.env.AGENT_MODEL
+      || process.env.LLM_MODEL
+      || 'qwen3.5:2b';
   }
 
   return process.env.COPILOT_MODEL || process.env.AGENT_MODEL || process.env.LLM_MODEL || 'gpt-5.3-codex';
@@ -151,6 +173,43 @@ function getProviderTimeoutMs(providerName) {
 
   const timeout = process.env.COPILOT_CLI_TIMEOUT_MS || process.env.AGENT_CLI_TIMEOUT_MS || process.env.LLM_CLI_TIMEOUT_MS;
   return parseInt(timeout || '120000', 10);
+}
+
+function getChildEnv() {
+  const childEnv = { ...process.env };
+  const pathParts = [childEnv.PATH || ''];
+
+  if (childEnv.HOME) {
+    const nvmVersionsDir = path.join(childEnv.HOME, '.nvm/versions/node');
+    if (fs.existsSync(nvmVersionsDir)) {
+      for (const version of fs.readdirSync(nvmVersionsDir)) {
+        const binDir = path.join(nvmVersionsDir, version, 'bin');
+        if (fs.existsSync(binDir)) {
+          pathParts.unshift(binDir);
+        }
+      }
+    }
+  }
+
+  if (childEnv.ANDROID_HOME) {
+    const platformToolsDir = path.join(childEnv.ANDROID_HOME, 'platform-tools');
+    if (fs.existsSync(platformToolsDir)) {
+      pathParts.unshift(platformToolsDir);
+    }
+  }
+
+  childEnv.PATH = pathParts.filter(Boolean).join(path.delimiter);
+
+  const runtimeRoot = path.join(process.cwd(), 'artifacts', 'agent-runtime');
+  childEnv.XDG_DATA_HOME ||= path.join(runtimeRoot, 'data');
+  childEnv.XDG_CACHE_HOME ||= path.join(runtimeRoot, 'cache');
+  childEnv.XDG_STATE_HOME ||= path.join(runtimeRoot, 'state');
+
+  for (const dir of [childEnv.XDG_DATA_HOME, childEnv.XDG_CACHE_HOME, childEnv.XDG_STATE_HOME]) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+
+  return childEnv;
 }
 
 function getManualFallback() {
@@ -207,21 +266,36 @@ ${getCodexFastModeInstructions()}
 - Keep this run bounded. Do not continue exploring after the requested targets are complete.
 - Before finishing, delete/close the Appium session if one was created.
 - Once the requested screenshots, page source files, and run summary are written, stop tool use.
+- Do not answer with setup advice, environment details, or a request for clarification.
 - Verify page source artifacts are real XML with UI hierarchy content. Do not leave placeholder files such as "Killed" or empty XML artifacts.
 - Final response must be a short completion summary that starts with: TASK_COMPLETE
 `;
 }
 
-function runProviderCli(provider, prompt, taskName) {
+async function runProviderCli(provider, prompt, taskName) {
   const model = getProviderModel(provider.name);
   const timeoutMs = getProviderTimeoutMs(provider.name);
   const outputFile = `artifacts/logs/${taskName}-${provider.outputSuffix}-output.txt`;
+  const cliPromptFile = `artifacts/logs/${taskName}-${provider.outputSuffix}-input.md`;
   const executablePrompt = withAutomationFooter(prompt, provider.name);
-  const args = provider.buildArgs({ model, prompt: executablePrompt });
+  const cliPrompt = executablePrompt;
+  const outputDir = path.dirname(outputFile);
+  if (!fs.existsSync(outputDir)) {
+    fs.mkdirSync(outputDir, { recursive: true });
+  }
+
+  fs.writeFileSync(cliPromptFile, cliPrompt, 'utf-8');
+
+  if (provider.name === 'direct') {
+    return runDirectTask(taskName, cliPrompt);
+  }
+
+  const args = provider.buildArgs({ model, prompt: cliPrompt, promptFile: cliPromptFile });
   const startedAt = new Date();
 
   const result = spawnSync(provider.binary, args, {
     cwd: process.cwd(),
+    env: getChildEnv(),
     encoding: 'utf-8',
     input: provider.promptViaStdin ? executablePrompt : undefined,
     stdio: 'pipe',
@@ -230,11 +304,6 @@ function runProviderCli(provider, prompt, taskName) {
   });
   const endedAt = new Date();
   const durationMs = endedAt.getTime() - startedAt.getTime();
-
-  const outputDir = path.dirname(outputFile);
-  if (!fs.existsSync(outputDir)) {
-    fs.mkdirSync(outputDir, { recursive: true });
-  }
 
   const combinedOutput = [
     `# Task: ${taskName}`,
@@ -314,7 +383,9 @@ async function invokeLLM(prompt, taskName) {
   }
 
   const fallbackToManual = getManualFallback();
-  const probe = spawnSync(provider.binary, ['--version'], { encoding: 'utf-8', stdio: 'pipe' });
+  const probe = provider.name === 'direct'
+    ? { status: 0 }
+    : spawnSync(provider.binary, ['--version'], { encoding: 'utf-8', stdio: 'pipe' });
   if (probe.error || probe.status !== 0) {
     if (!fallbackToManual) {
       const reason = probe.error ? probe.error.message : `exit code ${probe.status}`;
@@ -334,7 +405,7 @@ async function invokeLLM(prompt, taskName) {
   }
 
   console.log(`[Executor] Running ${provider.displayName} in non-interactive mode...`);
-  const cliResult = runProviderCli(provider, executablePrompt, taskName);
+  const cliResult = await runProviderCli(provider, executablePrompt, taskName);
   console.log(`[Executor] ${provider.displayName} end timestamp: ${isoNow()}`);
 
   return {
@@ -354,11 +425,6 @@ async function executeTask(promptFile, taskName) {
     console.error(`[Executor] Prompt file not found: ${promptFile}`);
     process.exit(1);
   }
-
-  const prompt = fs.readFileSync(promptFile, 'utf-8');
-
-  // Invoke LLM
-  const llmResult = await invokeLLM(prompt, taskName);
 
   console.log(`\n[Executor] LLM Invocation Result:`);
   console.log(llmResult);

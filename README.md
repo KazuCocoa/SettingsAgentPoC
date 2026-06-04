@@ -17,7 +17,7 @@ This PoC intentionally focuses on **traceability** and **safe exploration** rath
 
 ## Suggested stack
 
-- Codex or VS Code with GitHub Copilot Agent Mode
+- Direct local model with Appium MCP, or Codex / VS Code with GitHub Copilot Agent Mode
 - MCP configuration pointing to `appium-mcp`
 - Local Appium server
 - Android SDK + emulator
@@ -55,9 +55,9 @@ settings-agent-poc/
 4. Ensure `npx appium-mcp@latest` can run in your shell.
 5. Configure Codex or GitHub Copilot in VS Code (with MCP support for appium-mcp).
 
-## Quick Start (LLM-Driven Execution via Agent CLI)
+## Quick Start (LLM-Driven Execution)
 
-The PoC is designed to be driven by Codex or GitHub Copilot using Appium MCP tools. The default provider is Codex.
+The PoC can ask a local model to select Appium MCP tools for bounded Settings routes. Codex and Copilot remain available as alternate providers.
 
 ```bash
 # 1. Install dependencies
@@ -73,34 +73,51 @@ npm run validate-env
 npm run poc
 ```
 
-To use Copilot instead:
+The Node scripts load `.env` automatically; shell environment variables still override `.env` values.
+
+To use the direct local runner, set:
 
 ```bash
+AGENT_PROVIDER=direct
+DIRECT_MODEL=qwen3.5:2b
+```
+
+To use Codex or Copilot instead:
+
+```bash
+AGENT_PROVIDER=codex npm run poc
 AGENT_PROVIDER=copilot npm run poc
+```
+
+For direct execution, make sure Ollama is running and the model is pulled:
+
+```bash
+ollama serve
+ollama pull qwen3.5:2b
 ```
 
 This will:
 - Validate your Android setup
 - Prepare exploration and reachability prompts
-- Feed prompts to the selected agent CLI automatically (`codex exec ...` or `copilot -p ...`)
+- Feed prompts to the selected execution path automatically (`direct` local model, `codex exec ...`, or `copilot -p ...`)
 - Start `appium-mcp` automatically through MCP stdio configuration
-- Let the agent use Appium MCP tools to navigate Settings and capture evidence
+- Use Appium MCP tools to navigate Settings and capture evidence
 - Validate artifacts and generate a report
 
 ### How It Works
 
 1. **Environment Check** — `npm run validate-env` ensures you have Android SDK, adb, and an active emulator
-2. **Prompt Preparation** — `npm run poc` prepares prompts for the selected agent
-3. **MCP Startup** — Codex CLI receives an `appium-mcp` stdio server config using `scripts/appium-mcp-with-log.sh`; VS Code uses `.vscode/mcp.json`
-4. **LLM Execution** — `npm run poc` executes prompts via Codex CLI or Copilot CLI in non-interactive mode
-5. **Evidence Collection** — The agent captures screenshots, page source, and logs navigation
-6. **Validation & Reporting** — `npm run poc` validates artifacts and generates a summary report
-
-## Execution Modes
-
-```bash
-# Default: end-to-end (Codex CLI execution + finalize)
+2. **Prompt Preparation** — `npm run poc` prepares prompts for the selected execution path
+3. **MCP Startup** — Direct and Codex runs start `appium-mcp` with `scripts/appium-mcp-with-log.sh`; VS Code uses `.vscode/mcp.json`
+4. **Execution** — `npm run poc` executes via the direct local-model MCP loop or the selected CLI in non-interactive mode
+5. **Evidence Collection** — The runner captures screenshots, page source, and logs navigation
 npm run poc
+
+# Direct local model chooses Appium MCP tools
+AGENT_PROVIDER=direct npm run poc
+
+# Codex CLI execution + finalize
+AGENT_PROVIDER=codex npm run poc
 
 # Copilot CLI execution + finalize
 AGENT_PROVIDER=copilot npm run poc
@@ -131,9 +148,13 @@ npm run report             # Generate report from artifacts
 
 ### Agent Environment Variables
 
-- `AGENT_PROVIDER` — `codex` (default) or `copilot`
+- `AGENT_PROVIDER` — `direct`, `codex`, or `copilot`
 - `AGENT_MODEL` — optional model passed to the selected CLI; leave unset to use the CLI default
 - `AGENT_CLI_TIMEOUT_MS` — CLI timeout in milliseconds; Codex uses at least 600000ms unless `CODEX_CLI_TIMEOUT_MS` is set
+- `DIRECT_MODEL` — optional direct-runner Ollama model override; default `qwen3.5:2b`
+- `DIRECT_LLM_TIMEOUT_MS` — optional timeout for each direct-runner Ollama response; default `60000`
+- `DIRECT_MAX_STEPS` — optional max local-model tool loop steps; default `30`
+- `OLLAMA_BASE_URL` — optional Ollama base URL; default `http://127.0.0.1:11434`
 - `CODEX_CLI_TIMEOUT_MS` — optional Codex-specific timeout override in milliseconds
 - `CODEX_FAST_MODE=false` — opt out of terse Codex automation instructions; default is enabled for faster Appium runs
 - `AGENT_MANUAL_FALLBACK=true` — save prompts instead of failing when the selected CLI is unavailable

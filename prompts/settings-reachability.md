@@ -4,7 +4,7 @@ Use Appium MCP tools to prove that the coding agent can navigate between major S
 
 ## Target sequence
 
-1. Start Appium session using `appium/capabilities.android.json`.
+1. Start an Appium session using the session startup arguments supplied by the executor.
 2. Start at the Settings screen.
 3. Find and click the "Apps" element.
 4. Capture evidence.
@@ -24,3 +24,4 @@ Use Appium MCP tools to prove that the coding agent can navigate between major S
 - Use Appium MCP screenshot/page-source tools for evidence.
 - Do not use shell `adb uiautomator dump` or synthesize XML files.
 - Close the Appium session when the route is complete.
+- If a tool call fails because required arguments are missing, retry that same tool with the complete required arguments.
