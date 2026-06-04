@@ -121,7 +121,7 @@ const PROVIDERS = {
   },
   direct: {
     binary: 'direct-appium-agent',
-    displayName: 'Direct Appium MCP + Ollama',
+    displayName: 'Direct Appium MCP',
     status: 'executed-via-direct-appium-mcp',
     awaitingStatus: 'awaiting-direct-appium-mcp',
     outputSuffix: 'direct',
@@ -148,14 +148,6 @@ function getProvider() {
 function getProviderModel(providerName) {
   if (providerName === 'codex') {
     return process.env.CODEX_MODEL || process.env.AGENT_MODEL || process.env.LLM_MODEL || 'gpt-5.5';
-  }
-
-  if (providerName === 'direct') {
-    return process.env.DIRECT_MODEL
-      || process.env.OLLAMA_MODEL
-      || process.env.AGENT_MODEL
-      || process.env.LLM_MODEL
-      || 'qwen3.5:2b';
   }
 
   return process.env.COPILOT_MODEL || process.env.AGENT_MODEL || process.env.LLM_MODEL || 'gpt-5.3-codex';

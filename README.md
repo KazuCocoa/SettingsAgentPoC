@@ -17,7 +17,7 @@ This PoC intentionally focuses on **traceability** and **safe exploration** rath
 
 ## Suggested stack
 
-- Direct Appium MCP runner with local Ollama, or Codex / VS Code with GitHub Copilot Agent Mode
+- Direct Appium MCP runner, or Codex / VS Code with GitHub Copilot Agent Mode
 - MCP configuration pointing to `appium-mcp`
 - Local Appium server
 - Android SDK + emulator
@@ -57,7 +57,7 @@ settings-agent-poc/
 
 ## Quick Start (LLM-Driven Execution)
 
-The PoC can run directly against Appium MCP and use a local Ollama model only for bounded UI choices. Codex and Copilot remain available as alternate providers.
+The PoC can run directly against Appium MCP for bounded Settings routes. Codex and Copilot remain available as alternate providers.
 
 ```bash
 # 1. Install dependencies
@@ -79,7 +79,6 @@ To use the direct local runner, set:
 
 ```bash
 AGENT_PROVIDER=direct
-DIRECT_MODEL=qwen3.5:2b
 ```
 
 To use Codex or Copilot instead:
@@ -87,13 +86,6 @@ To use Codex or Copilot instead:
 ```bash
 AGENT_PROVIDER=codex npm run poc
 AGENT_PROVIDER=copilot npm run poc
-```
-
-For direct execution with a local Ollama model, make sure Ollama is running and the model is pulled:
-
-```bash
-ollama serve
-ollama pull qwen3.5:2b
 ```
 
 This will:
@@ -119,7 +111,7 @@ This will:
 # Default from .env: end-to-end direct Appium MCP runner + finalize
 npm run poc
 
-# Direct Appium MCP runner + local Ollama choices
+# Direct Appium MCP runner
 AGENT_PROVIDER=direct npm run poc
 
 # Codex CLI execution + finalize
@@ -157,9 +149,6 @@ npm run report             # Generate report from artifacts
 - `AGENT_PROVIDER` — `direct`, `codex`, or `copilot`
 - `AGENT_MODEL` — optional model passed to the selected CLI; leave unset to use the CLI default
 - `AGENT_CLI_TIMEOUT_MS` — CLI timeout in milliseconds; Codex uses at least 600000ms unless `CODEX_CLI_TIMEOUT_MS` is set
-- `DIRECT_MODEL` — optional direct-runner Ollama model override; default `qwen3.5:2b`
-- `DIRECT_LLM_TIMEOUT_MS` — optional timeout for each direct-runner Ollama decision; default `15000`
-- `OLLAMA_BASE_URL` — optional Ollama base URL; default `http://127.0.0.1:11434`
 - `CODEX_CLI_TIMEOUT_MS` — optional Codex-specific timeout override in milliseconds
 - `CODEX_FAST_MODE=false` — opt out of terse Codex automation instructions; default is enabled for faster Appium runs
 - `AGENT_MANUAL_FALLBACK=true` — save prompts instead of failing when the selected CLI is unavailable

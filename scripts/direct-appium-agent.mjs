@@ -27,23 +27,6 @@ function isoNow() {
   return new Date().toISOString();
 }
 
-function getModelName() {
-  const model = process.env.DIRECT_MODEL
-    || process.env.OLLAMA_MODEL
-    || process.env.AGENT_MODEL
-    || process.env.LLM_MODEL
-    || 'qwen3.5:2b';
-  return model.replace(/^ollama\//, '');
-}
-
-function getOllamaBaseUrl() {
-  return (process.env.OLLAMA_BASE_URL || 'http://127.0.0.1:11434').replace(/\/$/, '');
-}
-
-function getLlmTimeoutMs() {
-  return parseInt(process.env.DIRECT_LLM_TIMEOUT_MS || '15000', 10);
-}
-
 function getAppiumMcpCommand() {
   const command = process.env.APPIUM_MCP_COMMAND || 'bash';
   const args = process.env.APPIUM_MCP_ARGS
@@ -76,49 +59,6 @@ function extractXml(text) {
   const end = text.lastIndexOf('>');
   if (start >= 0 && end > start) return text.slice(start, end + 1).trim();
   return text.trim();
-}
-
-function compactPageSource(xml, limit = 12000) {
-  return xml
-    .replace(/\s+/g, ' ')
-    .slice(0, limit);
-}
-
-function parseJsonObject(text) {
-  const trimmed = text.trim();
-  try {
-    return JSON.parse(trimmed);
-  } catch {
-    const match = trimmed.match(/\{[\s\S]*\}/);
-    if (!match) return null;
-    try {
-      return JSON.parse(match[0]);
-    } catch {
-      return null;
-    }
-  }
-}
-
-async function callOllamaJson({ model, messages }) {
-  const response = await fetch(`${getOllamaBaseUrl()}/v1/chat/completions`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    signal: AbortSignal.timeout(getLlmTimeoutMs()),
-    body: JSON.stringify({
-      model,
-      messages,
-      temperature: 0,
-      stream: false,
-    }),
-  });
-
-  if (!response.ok) {
-    throw new Error(`Ollama request failed: ${response.status} ${await response.text()}`);
-  }
-
-  const payload = await response.json();
-  const content = payload.choices?.[0]?.message?.content || '';
-  return { content, parsed: parseJsonObject(content), payload };
 }
 
 async function withMcpClient(fn) {
@@ -179,34 +119,6 @@ async function captureEvidence(client, taskName, label, seq, transcript) {
   return { xml, filePath };
 }
 
-async function chooseTargetWithLlm({ model, pageXml, safeTargets, visited, taskName }) {
-  const response = await callOllamaJson({
-    model,
-    messages: [
-      {
-        role: 'system',
-        content: [
-          'You choose one safe Android Settings target from page source.',
-          'Return only JSON with keys: target, reason.',
-          'target must be an exact item from the safe target list if visible; otherwise closest safe visible Settings item.',
-          'Do not include prose.',
-        ].join(' '),
-      },
-      {
-        role: 'user',
-        content: JSON.stringify({
-          taskName,
-          safeTargets,
-          alreadyVisited: visited,
-          pageSource: compactPageSource(pageXml),
-        }),
-      },
-    ],
-  });
-
-  return response.parsed?.target || null;
-}
-
 function chooseFallbackTarget(pageXml, safeTargets, visited) {
   const visibleXml = pageXml.toLowerCase();
   return safeTargets.find((candidate) => (
@@ -255,7 +167,6 @@ async function navigateToTarget(client, target, transcript) {
 
 async function runDirectTask(taskName) {
   const config = TASK_CONFIGS[taskName] || TASK_CONFIGS['settings-explore'];
-  const model = getModelName();
   const transcript = [];
   const startedAt = isoNow();
   let sequence = 1;
@@ -291,32 +202,11 @@ async function runDirectTask(taskName) {
 
     try {
       while (visited.length < config.maxTargets) {
-        let target;
-
-        try {
-          target = await chooseTargetWithLlm({
-            model,
-            pageXml: evidence.xml,
-            safeTargets: config.safeTargets,
-            visited,
-            taskName,
-          });
-        } catch (err) {
-          transcript.push({
-            type: 'llm_fallback',
-            model,
-            message: err.message,
-          });
-          target = chooseFallbackTarget(evidence.xml, config.safeTargets, visited);
-        }
-
-        if (!target || visited.includes(target)) {
-          target = chooseFallbackTarget(evidence.xml, config.safeTargets, visited);
-        }
+        const target = chooseFallbackTarget(evidence.xml, config.safeTargets, visited);
 
         if (!target) break;
 
-        transcript.push({ type: 'llm_decision', target });
+        transcript.push({ type: 'navigation_target', target });
         await navigateToTarget(client, target, transcript);
         visited.push(target);
         evidence = await captureEvidence(client, taskName, target, sequence++, transcript);
@@ -337,7 +227,6 @@ async function runDirectTask(taskName) {
     '',
     `Started: ${startedAt}`,
     `Ended: ${endedAt}`,
-    `Model: ${model}`,
     `Visited targets: ${visited.length ? visited.join(', ') : '(none)'}`,
     '',
     'TASK_COMPLETE',
@@ -348,8 +237,7 @@ async function runDirectTask(taskName) {
     outputFile,
     [
       `# Task: ${taskName}`,
-      '# Provider: Direct Appium MCP + Ollama',
-      `# Model: ${model}`,
+      '# Provider: Direct Appium MCP',
       `# Started at: ${startedAt}`,
       `# Ended at: ${endedAt}`,
       '',
