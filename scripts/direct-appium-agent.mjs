@@ -32,7 +32,7 @@ function getModelName() {
     || process.env.OLLAMA_MODEL
     || process.env.AGENT_MODEL
     || process.env.LLM_MODEL
-    || 'qwen3.5:4b';
+    || 'qwen3.5:2b';
   return model.replace(/^ollama\//, '');
 }
 

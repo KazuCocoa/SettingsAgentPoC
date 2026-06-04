@@ -79,7 +79,7 @@ To use the direct local runner, set:
 
 ```bash
 AGENT_PROVIDER=direct
-DIRECT_MODEL=qwen3.5:4b
+DIRECT_MODEL=qwen3.5:2b
 ```
 
 To use Codex or Copilot instead:
@@ -93,7 +93,7 @@ For direct execution with a local Ollama model, make sure Ollama is running and 
 
 ```bash
 ollama serve
-ollama pull qwen3.5:4b
+ollama pull qwen3.5:2b
 ```
 
 This will:
@@ -157,7 +157,7 @@ npm run report             # Generate report from artifacts
 - `AGENT_PROVIDER` — `direct`, `codex`, or `copilot`
 - `AGENT_MODEL` — optional model passed to the selected CLI; leave unset to use the CLI default
 - `AGENT_CLI_TIMEOUT_MS` — CLI timeout in milliseconds; Codex uses at least 600000ms unless `CODEX_CLI_TIMEOUT_MS` is set
-- `DIRECT_MODEL` — optional direct-runner Ollama model override; default `qwen3.5:4b`
+- `DIRECT_MODEL` — optional direct-runner Ollama model override; default `qwen3.5:2b`
 - `DIRECT_LLM_TIMEOUT_MS` — optional timeout for each direct-runner Ollama decision; default `15000`
 - `OLLAMA_BASE_URL` — optional Ollama base URL; default `http://127.0.0.1:11434`
 - `CODEX_CLI_TIMEOUT_MS` — optional Codex-specific timeout override in milliseconds
