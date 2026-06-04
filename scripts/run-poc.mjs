@@ -16,7 +16,7 @@ const exploreOnly = args.includes('--explore-only');
 const reachabilityOnly = args.includes('--reachability-only');
 const finalize = args.includes('--finalize');
 const prepareOnly = args.includes('--prepare-only');
-const agentProvider = process.env.AGENT_PROVIDER || process.env.LLM_PROVIDER || 'codex';
+const agentProvider = process.env.AGENT_PROVIDER || process.env.LLM_PROVIDER || 'direct';
 
 function log(level, message) {
   const timestamp = new Date().toISOString();

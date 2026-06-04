@@ -57,7 +57,7 @@ settings-agent-poc/
 
 ## Quick Start (LLM-Driven Execution)
 
-The PoC can run directly against Appium MCP and use a local Ollama model only for bounded UI choices. Codex, Copilot, and Kilo remain available as alternate providers.
+The PoC can run directly against Appium MCP and use a local Ollama model only for bounded UI choices. Codex and Copilot remain available as alternate providers.
 
 ```bash
 # 1. Install dependencies
@@ -82,15 +82,14 @@ AGENT_PROVIDER=direct
 DIRECT_MODEL=qwen3.5:4b
 ```
 
-To use Codex, Copilot, or Kilo instead:
+To use Codex or Copilot instead:
 
 ```bash
 AGENT_PROVIDER=codex npm run poc
 AGENT_PROVIDER=copilot npm run poc
-AGENT_PROVIDER=kilo npm run poc
 ```
 
-For direct or Kilo with a local Ollama model, make sure Ollama is running and the model is pulled:
+For direct execution with a local Ollama model, make sure Ollama is running and the model is pulled:
 
 ```bash
 ollama serve
@@ -100,7 +99,7 @@ ollama pull qwen3.5:4b
 This will:
 - Validate your Android setup
 - Prepare exploration and reachability prompts
-- Feed prompts to the selected execution path automatically (`direct`, `codex exec ...`, `copilot -p ...`, or `kilo run -m ollama/qwen3.5:4b ...`)
+- Feed prompts to the selected execution path automatically (`direct`, `codex exec ...`, or `copilot -p ...`)
 - Start `appium-mcp` automatically through MCP stdio configuration
 - Use Appium MCP tools to navigate Settings and capture evidence
 - Validate artifacts and generate a report
@@ -129,9 +128,6 @@ AGENT_PROVIDER=codex npm run poc
 # Copilot CLI execution + finalize
 AGENT_PROVIDER=copilot npm run poc
 
-# Kilo CLI execution + finalize; defaults to local Ollama qwen3.5:4b
-AGENT_PROVIDER=kilo npm run poc
-
 # Manual mode: only prepare prompts for agent chat
 npm run poc:prepare
 
@@ -158,17 +154,13 @@ npm run report             # Generate report from artifacts
 
 ### Agent Environment Variables
 
-- `AGENT_PROVIDER` — `direct`, `codex`, `copilot`, or `kilo`
+- `AGENT_PROVIDER` — `direct`, `codex`, or `copilot`
 - `AGENT_MODEL` — optional model passed to the selected CLI; leave unset to use the CLI default
 - `AGENT_CLI_TIMEOUT_MS` — CLI timeout in milliseconds; Codex uses at least 600000ms unless `CODEX_CLI_TIMEOUT_MS` is set
 - `DIRECT_MODEL` — optional direct-runner Ollama model override; default `qwen3.5:4b`
 - `DIRECT_LLM_TIMEOUT_MS` — optional timeout for each direct-runner Ollama decision; default `15000`
 - `OLLAMA_BASE_URL` — optional Ollama base URL; default `http://127.0.0.1:11434`
 - `CODEX_CLI_TIMEOUT_MS` — optional Codex-specific timeout override in milliseconds
-- `KILO_MODEL` — optional Kilo-specific model override; default `ollama/qwen3.5:4b`
-- `KILO_CLI_TIMEOUT_MS` — optional Kilo-specific timeout override in milliseconds
-- `KILO_CLI_BINARY` — optional Kilo executable override; default `kilo`
-- `KILO_CLI_ARGS` — optional Kilo arguments before prompt text; default `run`
 - `CODEX_FAST_MODE=false` — opt out of terse Codex automation instructions; default is enabled for faster Appium runs
 - `AGENT_MANUAL_FALLBACK=true` — save prompts instead of failing when the selected CLI is unavailable
 - `CODEX_BYPASS_APPROVALS_AND_SANDBOX=false` — opt out of Codex's no-prompt automation mode; default is enabled so MCP tool calls can run non-interactively

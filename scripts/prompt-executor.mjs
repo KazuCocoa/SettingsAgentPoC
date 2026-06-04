@@ -3,7 +3,7 @@
 /**
  * Prompt Executor for Settings Agent PoC
  * Reads a prompt and invokes the LLM to execute it with available tools
- * Supports Codex CLI or Copilot CLI
+ * Supports direct Appium MCP, Codex CLI, or Copilot CLI
  */
 
 import fs from 'node:fs';
@@ -119,80 +119,6 @@ const PROVIDERS = {
       ];
     },
   },
-  kilo: {
-    binary: process.env.KILO_CLI_BINARY || 'kilo',
-    displayName: 'Kilo CLI',
-    status: 'executed-via-kilo-cli',
-    awaitingStatus: 'awaiting-kilo-execution',
-    outputSuffix: 'kilo',
-    manualName: 'Kilo',
-    manualProduct: 'Kilo',
-    buildArgs({ model, prompt, promptFile }) {
-      const args = process.env.KILO_CLI_ARGS
-        ? process.env.KILO_CLI_ARGS.split(/\s+/).filter(Boolean)
-        : ['run'];
-
-      if (!args.includes('--dir')) {
-        args.push('--dir', process.cwd());
-      }
-
-      if (!args.includes('--agent')) {
-        args.push('--agent', process.env.KILO_AGENT || 'appium-automation');
-      }
-
-      if (process.env.KILO_AUTO_APPROVE !== 'false') {
-        if (!args.includes('--auto')) {
-          args.push('--auto');
-        }
-
-        if (!args.includes('--dangerously-skip-permissions')) {
-          args.push('--dangerously-skip-permissions');
-        }
-      }
-
-      if (model) {
-        args.push('-m', model);
-      }
-
-      if (process.env.KILO_PROMPT_VIA_FILE === 'true' && promptFile) {
-        args.push(
-          [
-            'Execute this automation task exactly.',
-            'You must use the configured appium-mcp MCP tools; do not answer conversationally.',
-            'Your first action must be an appium-mcp_* tool call, such as appium-mcp_appium_session_management.',
-            'Do not call appium-mcp_start_appium; that tool does not exist.',
-            'For Android Settings, use this exact start sequence:',
-            '1. appium-mcp_select_device',
-            '2. appium-mcp_appium_session_management with action=create, platform=android, and capabilities as a JSON string from appium/capabilities.android.json.',
-            'Then observe with appium-mcp_appium_screenshot and appium-mcp_appium_get_page_source.',
-            'Do not use shell, list, grep, glob, web, or repository-inspection tools for this automation.',
-            '',
-            prompt,
-          ].join('\n'),
-          '--file',
-          promptFile
-        );
-      } else {
-        args.push(
-          [
-            'Execute this automation task exactly.',
-            'You must use the configured appium-mcp MCP tools; do not answer conversationally.',
-            'Your first action must be an appium-mcp_* tool call.',
-            'Do not call appium-mcp_start_appium; that tool does not exist.',
-            'For Android Settings, use this exact start sequence:',
-            '1. appium-mcp_select_device',
-            '2. appium-mcp_appium_session_management with action=create, platform=android, and capabilities as a JSON string from appium/capabilities.android.json.',
-            'Then observe with appium-mcp_appium_screenshot and appium-mcp_appium_get_page_source.',
-            'Do not use shell, list, grep, glob, web, or repository-inspection tools for this automation.',
-            '',
-            prompt,
-          ].join('\n')
-        );
-      }
-
-      return args;
-    },
-  },
   direct: {
     binary: 'direct-appium-agent',
     displayName: 'Direct Appium MCP + Ollama',
@@ -208,7 +134,7 @@ const PROVIDERS = {
 };
 
 function getProvider() {
-  const providerName = (process.env.AGENT_PROVIDER || process.env.LLM_PROVIDER || 'codex').toLowerCase();
+  const providerName = (process.env.AGENT_PROVIDER || process.env.LLM_PROVIDER || 'direct').toLowerCase();
   const provider = PROVIDERS[providerName];
 
   if (!provider) {
@@ -222,10 +148,6 @@ function getProvider() {
 function getProviderModel(providerName) {
   if (providerName === 'codex') {
     return process.env.CODEX_MODEL || process.env.AGENT_MODEL || process.env.LLM_MODEL || 'gpt-5.5';
-  }
-
-  if (providerName === 'kilo') {
-    return process.env.KILO_MODEL || process.env.AGENT_MODEL || process.env.LLM_MODEL || 'ollama/qwen3.5:4b';
   }
 
   if (providerName === 'direct') {
@@ -249,48 +171,8 @@ function getProviderTimeoutMs(providerName) {
     return Math.max(parseInt(genericTimeout || '600000', 10), 600000);
   }
 
-  const timeout = providerName === 'kilo'
-    ? process.env.KILO_CLI_TIMEOUT_MS || process.env.AGENT_CLI_TIMEOUT_MS || process.env.LLM_CLI_TIMEOUT_MS
-    : process.env.COPILOT_CLI_TIMEOUT_MS || process.env.AGENT_CLI_TIMEOUT_MS || process.env.LLM_CLI_TIMEOUT_MS;
+  const timeout = process.env.COPILOT_CLI_TIMEOUT_MS || process.env.AGENT_CLI_TIMEOUT_MS || process.env.LLM_CLI_TIMEOUT_MS;
   return parseInt(timeout || '120000', 10);
-}
-
-function getAndroidCapabilitiesJson() {
-  const capabilitiesPath = path.join(process.cwd(), 'appium', 'capabilities.android.json');
-  if (!fs.existsSync(capabilitiesPath)) {
-    return '{}';
-  }
-
-  return JSON.stringify(JSON.parse(fs.readFileSync(capabilitiesPath, 'utf-8')));
-}
-
-function buildKiloAutomationPrompt(prompt) {
-  const isReachability = /prove Settings reachability|Target sequence/i.test(prompt);
-  const task = isReachability
-    ? 'Navigate Android Settings to Apps, capture screenshot and page source, go back, navigate to Battery, capture screenshot and page source, then clean up.'
-    : 'Explore Android Settings safely, capture screenshot and page source on the home screen and at two safe pages such as Apps and Battery, then clean up.';
-
-  return [
-    'You are executing an Android Settings Appium MCP automation. Do not ask questions.',
-    'Use only the exact available tool names below.',
-    '',
-    'FIRST TOOL CALL: appium-mcp_select_device',
-    `SECOND TOOL CALL: appium-mcp_appium_session_management with {"action":"create","platform":"android","capabilities":${JSON.stringify(getAndroidCapabilitiesJson())}}`,
-    '',
-    'After the session is created:',
-    '- Use appium-mcp_appium_screenshot for screenshots.',
-    '- Use appium-mcp_appium_get_page_source for XML page source.',
-    '- Use appium-mcp_appium_find_element to find visible safe Settings items.',
-    '- Use appium-mcp_appium_gesture to tap or go back.',
-    '- Use appium-mcp_appium_session_management with action=delete before finishing.',
-    '',
-    'Never call appium-mcp_start_appium. It does not exist.',
-    'Never use shell, list, grep, glob, web, or repository inspection tools.',
-    '',
-    `Task: ${task}`,
-    'Write a concise run summary into artifacts/logs/ if file writing is available.',
-    'Final response must start with TASK_COMPLETE.',
-  ].join('\n');
 }
 
 function getChildEnv() {
@@ -318,7 +200,7 @@ function getChildEnv() {
 
   childEnv.PATH = pathParts.filter(Boolean).join(path.delimiter);
 
-  const runtimeRoot = path.join(process.cwd(), 'artifacts', 'kilo-runtime');
+  const runtimeRoot = path.join(process.cwd(), 'artifacts', 'agent-runtime');
   childEnv.XDG_DATA_HOME ||= path.join(runtimeRoot, 'data');
   childEnv.XDG_CACHE_HOME ||= path.join(runtimeRoot, 'cache');
   childEnv.XDG_STATE_HOME ||= path.join(runtimeRoot, 'state');
@@ -333,15 +215,13 @@ function getChildEnv() {
 function getManualFallback() {
   return process.env.AGENT_MANUAL_FALLBACK === 'true'
     || process.env.LLM_MANUAL_FALLBACK === 'true'
-    || process.env.COPILOT_MANUAL_FALLBACK === 'true'
-    || process.env.KILO_MANUAL_FALLBACK === 'true';
+    || process.env.COPILOT_MANUAL_FALLBACK === 'true';
 }
 
 function getManualOnly() {
   return process.env.AGENT_MANUAL_ONLY === 'true'
     || process.env.LLM_MANUAL_ONLY === 'true'
-    || process.env.COPILOT_MANUAL_ONLY === 'true'
-    || process.env.KILO_MANUAL_ONLY === 'true';
+    || process.env.COPILOT_MANUAL_ONLY === 'true';
 }
 
 function getCodexFastModeInstructions() {
@@ -369,14 +249,9 @@ function hasCancelledMcpToolCall(outputText) {
     .some((line) => line.trim() === 'user cancelled MCP tool call');
 }
 
-function hasKiloCliError(outputText) {
-  return /(^|\n)\s*Error:\s/.test(outputText)
-    || outputText.includes('ProviderModelNotFoundError');
-}
-
 function withAutomationFooter(prompt, providerName) {
   if (
-    !['codex', 'kilo'].includes(providerName)
+    providerName !== 'codex'
     || process.env.CODEX_AUTOMATION_FOOTER === 'false'
     || prompt.includes('## Automation completion requirements')
   ) {
@@ -403,9 +278,7 @@ async function runProviderCli(provider, prompt, taskName) {
   const outputFile = `artifacts/logs/${taskName}-${provider.outputSuffix}-output.txt`;
   const cliPromptFile = `artifacts/logs/${taskName}-${provider.outputSuffix}-input.md`;
   const executablePrompt = withAutomationFooter(prompt, provider.name);
-  const cliPrompt = provider.name === 'kilo'
-    ? buildKiloAutomationPrompt(executablePrompt)
-    : executablePrompt;
+  const cliPrompt = executablePrompt;
   const outputDir = path.dirname(outputFile);
   if (!fs.existsSync(outputDir)) {
     fs.mkdirSync(outputDir, { recursive: true });
@@ -466,18 +339,6 @@ async function runProviderCli(provider, prompt, taskName) {
   }
 
   const outputText = `${result.stdout || ''}\n${result.stderr || ''}`;
-  if (provider.name === 'kilo' && hasKiloCliError(outputText)) {
-    const stderr = (result.stderr || '').trim();
-    throw new Error(`${provider.displayName} reported an error${stderr ? `: ${stderr}` : ''}`);
-  }
-
-  if (provider.name === 'kilo' && !outputText.includes('TASK_COMPLETE')) {
-    throw new Error(
-      `${provider.displayName} finished without completing the automation. ` +
-      'It did not emit TASK_COMPLETE, which usually means the selected model did not call the Appium MCP tools.'
-    );
-  }
-
   if (provider.name === 'codex' && hasCancelledMcpToolCall(outputText)) {
     throw new Error(
       `${provider.displayName} reported cancelled MCP tool calls. ` +
