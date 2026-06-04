@@ -96,7 +96,7 @@ STEP 6: What to Expect
 async function main() {
   log('INFO', '=== Settings Agent PoC Orchestrator (LLM-Driven) ===');
   const executionLabel = agentProvider === 'direct'
-    ? 'direct Appium MCP runner'
+    ? 'direct local-model Appium MCP runner'
     : `${agentProvider} CLI`;
   log('INFO', `Mode: ${finalize ? 'finalize (post-agent validation/report)' : prepareOnly ? 'prepare-only (manual agent chat)' : `auto (${executionLabel} + finalize)`}`);
   log('INFO', `Execution model: ${executionLabel} + Appium MCP tools`);

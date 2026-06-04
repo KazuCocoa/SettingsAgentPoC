@@ -18,7 +18,7 @@ async function main() {
     console.log(`[run-reachability] Prompt file: ${result.promptFile}`);
     console.log(`[run-reachability] Status: ${result.status}`);
     if (result.outputFile) {
-      const executionLabel = result.provider === 'direct' ? 'direct runner' : `${result.provider} CLI`;
+      const executionLabel = result.provider === 'direct' ? 'direct local-model runner' : `${result.provider} CLI`;
       console.log(`[run-reachability] ${executionLabel} output: ${result.outputFile}`);
       console.log(`[run-reachability] Reachability task executed automatically via ${executionLabel}.`);
     } else {

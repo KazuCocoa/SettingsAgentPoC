@@ -18,7 +18,7 @@ async function main() {
     console.log(`[run-explore] Prompt file: ${result.promptFile}`);
     console.log(`[run-explore] Status: ${result.status}`);
     if (result.outputFile) {
-      const executionLabel = result.provider === 'direct' ? 'direct runner' : `${result.provider} CLI`;
+      const executionLabel = result.provider === 'direct' ? 'direct local-model runner' : `${result.provider} CLI`;
       console.log(`[run-explore] ${executionLabel} output: ${result.outputFile}`);
       console.log(`[run-explore] Exploration task executed automatically via ${executionLabel}.`);
     } else {

@@ -3,7 +3,7 @@
 /**
  * Prompt Executor for Settings Agent PoC
  * Reads a prompt and invokes the LLM to execute it with available tools
- * Supports direct Appium MCP, Codex CLI, or Copilot CLI
+ * Supports direct local-model MCP, Codex CLI, or Copilot CLI
  */
 
 import fs from 'node:fs';
@@ -121,12 +121,12 @@ const PROVIDERS = {
   },
   direct: {
     binary: 'direct-appium-agent',
-    displayName: 'Direct Appium MCP',
+    displayName: 'Direct local model + Appium MCP',
     status: 'executed-via-direct-appium-mcp',
     awaitingStatus: 'awaiting-direct-appium-mcp',
     outputSuffix: 'direct',
-    manualName: 'Direct Appium MCP',
-    manualProduct: 'Direct Appium MCP runner',
+    manualName: 'Direct local model',
+    manualProduct: 'Direct local-model MCP runner',
     buildArgs() {
       return [];
     },
@@ -148,6 +148,14 @@ function getProvider() {
 function getProviderModel(providerName) {
   if (providerName === 'codex') {
     return process.env.CODEX_MODEL || process.env.AGENT_MODEL || process.env.LLM_MODEL || 'gpt-5.5';
+  }
+
+  if (providerName === 'direct') {
+    return process.env.DIRECT_MODEL
+      || process.env.OLLAMA_MODEL
+      || process.env.AGENT_MODEL
+      || process.env.LLM_MODEL
+      || 'qwen3.5:2b';
   }
 
   return process.env.COPILOT_MODEL || process.env.AGENT_MODEL || process.env.LLM_MODEL || 'gpt-5.3-codex';
@@ -279,7 +287,7 @@ async function runProviderCli(provider, prompt, taskName) {
   fs.writeFileSync(cliPromptFile, cliPrompt, 'utf-8');
 
   if (provider.name === 'direct') {
-    return runDirectTask(taskName);
+    return runDirectTask(taskName, cliPrompt);
   }
 
   const args = provider.buildArgs({ model, prompt: cliPrompt, promptFile: cliPromptFile });
