@@ -66,6 +66,14 @@ function readCapabilitiesJson() {
   return JSON.stringify(JSON.parse(fs.readFileSync(capabilitiesPath, 'utf-8')));
 }
 
+function buildCreateSessionArgs() {
+  return JSON.stringify({
+    action: 'create',
+    platform: 'android',
+    capabilities: readCapabilitiesJson(),
+  });
+}
+
 function textFromToolResult(result) {
   const content = result?.content || [];
   return content
@@ -102,12 +110,29 @@ function parseToolArgs(rawArgs) {
   }
 }
 
+function directToolDescription(tool) {
+  if (tool.name === 'select_device') {
+    return `${tool.description || ''}\nFor Android startup, call with exactly {"platform":"android"}.`;
+  }
+
+  if (tool.name === 'appium_session_management') {
+    return [
+      tool.description || '',
+      'For Android startup, action=create requires all three arguments: action, platform, capabilities.',
+      'Use platform="android". Use the complete capabilities JSON string supplied in the user prompt.',
+      'Never call action=create with only {"action":"create"}.',
+    ].join('\n');
+  }
+
+  return tool.description || '';
+}
+
 function toChatTool(tool) {
   return {
     type: 'function',
     function: {
       name: tool.name,
-      description: tool.description || '',
+      description: directToolDescription(tool),
       parameters: tool.inputSchema || {
         type: 'object',
         properties: {},
@@ -215,10 +240,11 @@ function buildSystemPrompt(toolNames) {
   return [
     'You are controlling Android Settings through Appium MCP tools.',
     'You must choose and call tools yourself. Do not ask for deterministic execution.',
+    'Use only the tool-calling interface. Do not write XML, <function>, <tool>, or pseudo-code tool calls in text.',
     'Use the exact tool names provided by the tool list. If task text mentions appium-mcp_ prefixes, strip that prefix when calling tools.',
-    'For Android local sessions, start by selecting an Android device, then create an Android Appium session using capabilities from the prompt.',
-    'For appium_session_management, action must be exactly one of: create, attach, detach, delete, list, select. Use action=create to start and action=delete to close.',
-    'For select_device on Android, call it with {"platform":"android"}.',
+    'For Android local sessions, first call select_device, then call appium_session_management to create the session.',
+    'For appium_session_management create calls, always include all three keys: action, platform, capabilities.',
+    'For appium_session_management, action must be exactly one of: create, attach, detach, delete, list, select.',
     'Use screenshots and page source as evidence. Prefer safe read-only navigation.',
     'Before finishing, close/delete the Appium session if one was created.',
     'When the task is complete, respond with a concise summary that starts with TASK_COMPLETE.',
@@ -228,20 +254,30 @@ function buildSystemPrompt(toolNames) {
 }
 
 function buildTaskPrompt(prompt) {
-  const capabilities = readCapabilitiesJson();
+  const createSessionArgs = buildCreateSessionArgs();
   return [
+    'DIRECT LOCAL-MODEL STARTUP',
+    '',
+    'Call these first, in this order:',
+    '1. select_device with arguments:',
+    '{"platform":"android"}',
+    '2. appium_session_management with arguments:',
+    createSessionArgs,
+    '',
+    'Important: the create-session call is invalid unless it includes action, platform, and capabilities. Do not call appium_session_management with only {"action":"create"}.',
+    'The capabilities field is a JSON string. Copy the complete capabilities string from the exact arguments above.',
+    '',
+    'After the session is created, continue with screenshots, page source, safe navigation, and session cleanup.',
+    '',
     prompt,
     '',
-    'Important for this direct local-model run:',
+    'Tool-name reminders for this direct local-model run:',
     '- Choose Appium MCP tools using the tool-calling interface.',
     '- Do not inspect unrelated repository files or prior artifacts.',
     '- If the prompt shows appium-mcp_appium_screenshot, call appium_screenshot.',
     '- If the prompt shows appium-mcp_appium_get_page_source, call appium_get_page_source.',
     '- If the prompt shows appium-mcp_appium_session_management, call appium_session_management.',
     '- If the prompt shows appium-mcp_select_device, call select_device.',
-    '- Required startup call 1: select_device with {"platform":"android"}.',
-    `- Required startup call 2: appium_session_management with {"action":"create","platform":"android","capabilities":${JSON.stringify(capabilities)}}.`,
-    '- Do not call appium_session_management with only {"action":"create"}.',
   ].join('\n');
 }
 
@@ -335,10 +371,10 @@ async function runDirectTask(taskName, prompt = '') {
           messages.push({
             role: 'user',
             content: [
-              'Repair the appium_session_management call.',
-              'For starting Android Settings, call appium_session_management with exactly:',
-              '{"action":"create","platform":"android","capabilities":"<the Android capabilities JSON string from the prompt>"}',
-              'Do not omit platform or capabilities.',
+              'Repair the appium_session_management call by calling the tool again.',
+              'Use these exact arguments for starting Android Settings:',
+              buildCreateSessionArgs(),
+              'Do not omit platform or capabilities. Do not explain; call the tool.',
             ].join(' '),
           });
         }
