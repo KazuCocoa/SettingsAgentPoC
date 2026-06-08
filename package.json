@@ -15,5 +15,8 @@
     "poc:reachability": "node scripts/run-poc.mjs --reachability-only",
     "validate-artifacts": "node scripts/validate-artifacts.mjs",
     "report": "node scripts/generate-report.mjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.22.0"
   }
 }
